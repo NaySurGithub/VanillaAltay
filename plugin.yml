@@ -1,0 +1,9 @@
+---
+name: VanillaAltay
+version: 0.1.0
+main: VanillaAltay\Main
+api: 5.0.0
+load: STARTUP
+author: Nay
+description: Implements vanilla Minecraft features missing from Altay.
+...
