@@ -6,6 +6,7 @@ namespace VanillaAltay\world\generator\carver;
 
 use pocketmine\utils\Random;
 use pocketmine\world\generator\noise\Simplex;
+
 use function abs;
 use function ceil;
 use function max;
@@ -18,9 +19,10 @@ use function min;
  * tunnels that connect them. Both fields are sampled on a coarse grid and interpolated, since evaluating them
  * per block costs more than the rest of the generator put together.
  */
-final class CaveCarver{
-
+final class CaveCarver
+{
 	private const CHEESE_THRESHOLD = 0.78;
+
 	private const TUNNEL_THRESHOLD = 0.022;
 
 	private const SAMPLING_RATE = 8;
@@ -36,14 +38,17 @@ final class CaveCarver{
 	public const SURFACE_MARGIN = 6;
 
 	private Simplex $cheese;
+
 	private Simplex $tunnels;
 
-	public function __construct(Random $random, private int $seaLevel){
+	public function __construct(Random $random, private int $seaLevel)
+	{
 		$this->cheese = new Simplex($random, 3, 0.5, 1 / 48);
 		$this->tunnels = new Simplex($random, 2, 0.5, 1 / 72);
 	}
 
-	public function sample(int $chunkX, int $chunkZ, int $floor, int $ceiling) : CaveNoise{
+	public function sample(int $chunkX, int $chunkZ, int $floor, int $ceiling) : CaveNoise
+	{
 		$ySize = (int) ceil(max(1, $ceiling - $floor + 1) / self::SAMPLING_RATE_Y) * self::SAMPLING_RATE_Y;
 		$baseX = $chunkX * 16;
 		$baseZ = $chunkZ * 16;
@@ -52,7 +57,7 @@ final class CaveCarver{
 			$this->cheese->getFastNoise3D(16, $ySize, 16, self::SAMPLING_RATE, self::SAMPLING_RATE_Y, self::SAMPLING_RATE, $baseX, $floor, $baseZ),
 			$this->tunnels->getFastNoise3D(16, $ySize, 16, self::SAMPLING_RATE, self::SAMPLING_RATE_Y, self::SAMPLING_RATE, $baseX, $floor, $baseZ),
 			$floor,
-			$this->seaLevel
+			$this->seaLevel,
 		);
 	}
 
@@ -63,16 +68,18 @@ final class CaveCarver{
 	 * ends define. When that interval stays clear of both thresholds, the whole cell is solid and the caller can
 	 * skip it instead of testing its blocks one by one.
 	 */
-	public static function cellMayContainCave(float $cheese0, float $cheese1, float $tunnel0, float $tunnel1) : bool{
-		if(($tunnel0 < 0) !== ($tunnel1 < 0) || min(abs($tunnel0), abs($tunnel1)) < self::TUNNEL_THRESHOLD){
+	public static function cellMayContainCave(float $cheese0, float $cheese1, float $tunnel0, float $tunnel1) : bool
+	{
+		if (($tunnel0 < 0) !== ($tunnel1 < 0) || min(abs($tunnel0), abs($tunnel1)) < self::TUNNEL_THRESHOLD) {
 			return true;
 		}
 
 		return max($cheese0, $cheese1) > self::CHEESE_THRESHOLD;
 	}
 
-	public static function isCave(float $cheese, float $tunnel, int $y, int $seaLevel) : bool{
-		if(abs($tunnel) < self::TUNNEL_THRESHOLD){
+	public static function isCave(float $cheese, float $tunnel, int $y, int $seaLevel) : bool
+	{
+		if (abs($tunnel) < self::TUNNEL_THRESHOLD) {
 			return true;
 		}
 

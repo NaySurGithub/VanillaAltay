@@ -10,13 +10,14 @@ use pocketmine\world\ChunkManager;
 use VanillaAltay\world\generator\structure\mineshaft\BoundingBox;
 use VanillaAltay\world\generator\structure\mineshaft\MineshaftPiece;
 use VanillaAltay\world\generator\structure\mineshaft\MineshaftRoom;
+
 use function array_key_first;
 use function count;
 use function in_array;
 use function intdiv;
 
-final class Mineshaft implements SpreadStructure{
-
+final class Mineshaft implements SpreadStructure
+{
 	private const SALT = 30915278;
 
 	/**
@@ -32,7 +33,9 @@ final class Mineshaft implements SpreadStructure{
 	 * @phpstan-var array<int, array{MineshaftPiece[], BoundingBox}>
 	 */
 	private array $layouts = [];
+
 	private const SEA_LEVEL = 63;
+
 	private const MIN_DEPTH_BELOW_SEA = 10;
 
 	private const MESA_BIOMES = [
@@ -41,18 +44,21 @@ final class Mineshaft implements SpreadStructure{
 		BiomeIds::MESA_PLATEAU_STONE,
 		BiomeIds::MESA_BRYCE,
 		BiomeIds::MESA_PLATEAU_MUTATED,
-		BiomeIds::MESA_PLATEAU_STONE_MUTATED
+		BiomeIds::MESA_PLATEAU_STONE_MUTATED,
 	];
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "mineshaft";
 	}
 
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, 4, 16, fn(int $biomeId) => true);
 	}
 
-	public function getChunkReach() : int{
+	public function getChunkReach() : int
+	{
 		return self::CHUNK_REACH;
 	}
 
@@ -61,11 +67,13 @@ final class Mineshaft implements SpreadStructure{
 	 * falls inside the chunks it has loaded. A shaft therefore spans as far as it wants, one chunk at a time,
 	 * instead of being cut to the chunk it started from.
 	 */
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$this->placeAround($world, $random, $x >> 4, $z >> 4, $x >> 4, $z >> 4);
 	}
 
-	public function placeAround(ChunkManager $world, Random $random, int $originChunkX, int $originChunkZ, int $targetChunkX, int $targetChunkZ) : void{
+	public function placeAround(ChunkManager $world, Random $random, int $originChunkX, int $originChunkZ, int $targetChunkX, int $targetChunkZ) : void
+	{
 		$origin = $world->getChunk($originChunkX, $originChunkZ);
 		$mesa = $origin !== null && in_array($origin->getBiomeId(7, 0, 7), self::MESA_BIOMES, true);
 
@@ -73,12 +81,16 @@ final class Mineshaft implements SpreadStructure{
 		[$pieces] = $this->getLayout($random, $layoutSeed, $originChunkX, $originChunkZ, $mesa);
 
 		$clip = new BoundingBox(
-			($targetChunkX - 1) << 4, $world->getMinY(), ($targetChunkZ - 1) << 4,
-			(($targetChunkX + 2) << 4) - 1, $world->getMaxY() - 1, (($targetChunkZ + 2) << 4) - 1
+			($targetChunkX - 1) << 4,
+			$world->getMinY(),
+			($targetChunkZ - 1) << 4,
+			(($targetChunkX + 2) << 4) - 1,
+			$world->getMaxY() - 1,
+			(($targetChunkZ + 2) << 4) - 1,
 		);
 
-		foreach($pieces as $index => $piece){
-			if(!$piece->boundingBox->intersects($clip)){
+		foreach ($pieces as $index => $piece) {
+			if (!$piece->boundingBox->intersects($clip)) {
 				continue;
 			}
 
@@ -94,8 +106,9 @@ final class Mineshaft implements SpreadStructure{
 	 *
 	 * @return array{MineshaftPiece[], BoundingBox}
 	 */
-	private function getLayout(Random $random, int $layoutSeed, int $chunkX, int $chunkZ, bool $mesa) : array{
-		if(isset($this->layouts[$layoutSeed])){
+	private function getLayout(Random $random, int $layoutSeed, int $chunkX, int $chunkZ, bool $mesa) : array
+	{
+		if (isset($this->layouts[$layoutSeed])) {
 			return $this->layouts[$layoutSeed];
 		}
 
@@ -104,7 +117,7 @@ final class Mineshaft implements SpreadStructure{
 		$room->addChildren($room, $pieces, $random);
 
 		$total = new BoundingBox($room->boundingBox->x0, $room->boundingBox->y0, $room->boundingBox->z0, $room->boundingBox->x1, $room->boundingBox->y1, $room->boundingBox->z1);
-		foreach($pieces as $piece){
+		foreach ($pieces as $piece) {
 			$total->expand($piece->boundingBox);
 		}
 
@@ -112,12 +125,12 @@ final class Mineshaft implements SpreadStructure{
 			? 64 - $total->y1 + intdiv($total->getYSpan(), 2) + 5
 			: self::belowSeaLevelOffset($random, $total);
 
-		foreach($pieces as $piece){
+		foreach ($pieces as $piece) {
 			$piece->move(0, $offset, 0);
 		}
 		$total->move(0, $offset, 0);
 
-		if(count($this->layouts) >= self::LAYOUT_CACHE_SIZE){
+		if (count($this->layouts) >= self::LAYOUT_CACHE_SIZE) {
 			//the keys are layout seeds, so shifting would renumber them and hand back the wrong layout
 			unset($this->layouts[array_key_first($this->layouts)]);
 		}
@@ -125,10 +138,11 @@ final class Mineshaft implements SpreadStructure{
 		return $this->layouts[$layoutSeed] = [$pieces, $total];
 	}
 
-	private static function belowSeaLevelOffset(Random $random, BoundingBox $total) : int{
+	private static function belowSeaLevelOffset(Random $random, BoundingBox $total) : int
+	{
 		$range = self::SEA_LEVEL - self::MIN_DEPTH_BELOW_SEA;
 		$top = $total->getYSpan() - 64 + 1;
-		if($top < $range){
+		if ($top < $range) {
 			$top += $random->nextBoundedInt($range - $top);
 		}
 

@@ -7,8 +7,8 @@ namespace VanillaAltay\world\generator\carver;
 /**
  * The cave fields of one chunk, sampled once and read per block.
  */
-final class CaveNoise{
-
+final class CaveNoise
+{
 	/**
 	 * @param float[][][] $cheese
 	 * @param float[][][] $tunnels
@@ -17,12 +17,13 @@ final class CaveNoise{
 		private array $cheese,
 		private array $tunnels,
 		private int $floor,
-		private int $seaLevel
-	){}
+		private int $seaLevel,
+	) {}
 
-	public function isCave(int $x, int $y, int $z) : bool{
+	public function isCave(int $x, int $y, int $z) : bool
+	{
 		$index = $y - $this->floor;
-		if($index < 0 || !isset($this->cheese[$x][$z][$index])){
+		if ($index < 0 || !isset($this->cheese[$x][$z][$index])) {
 			return false;
 		}
 
@@ -36,11 +37,13 @@ final class CaveNoise{
 	 * @return float[][]
 	 * @phpstan-return array{array<int, float>, array<int, float>}
 	 */
-	public function getColumn(int $x, int $z) : array{
+	public function getColumn(int $x, int $z) : array
+	{
 		return [$this->cheese[$x][$z], $this->tunnels[$x][$z]];
 	}
 
-	public function getFloor() : int{
+	public function getFloor() : int
+	{
 		return $this->floor;
 	}
 }

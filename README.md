@@ -18,6 +18,15 @@ Drop the folder (or the compiled `.phar`) into your server's `plugins/` director
 
 Requires Altay 5.x.
 
+Configuration is generated in `plugin_data/VanillaAltay/config.yml`. It can disable the generator registration,
+custom biome registration, caves, ores, ground cover, biome decoration, all structures or each structure
+individually. The `/locate` and `/summon` commands and their client-side argument hints can also be disabled
+independently.
+Entities, AI, natural spawning, native entity overrides, spawn-egg overrides, mounts, owner combat and anger
+propagation can also be switched independently. Spawn frequency, category caps and individual entity types are
+configurable. Restart the server after changing it. Disabling custom biome registration while keeping generation
+enabled is not recommended, because missing Altay biomes will fall back to the server's defaults.
+
 ## 🌎 Vanilla world generation
 
 Registers a `vanilla_overworld` generator, built the way vanilla has generated the overworld since 1.18.
@@ -103,6 +112,19 @@ without that test the cost near a mineshaft was 134 ms per chunk instead of 15.
 only. Biome search walks a square spiral of chunks; structure search walks the placement regions directly. Both
 are capped so a search can never hang the server, and only the biomes the generator actually produces are
 offered. The client gets real argument hints.
+
+`/summon <entity> [x y z]` creates any entity registered by VanillaAltay. The command is operator-only and must
+be run by a player. Coordinates are optional; when omitted, the entity appears at the player's position. Absolute
+and relative coordinates are supported:
+
+```text
+/summon minecraft:cow
+/summon minecraft:warden 100 70 -25
+/summon minecraft:phantom ~ ~10 ~
+```
+
+The `minecraft:` namespace may be omitted. Available identifiers are displayed by Bedrock's command suggestions
+when `commands.summon.command-hints` is enabled.
 
 ### ⚠️ What is approximate
 

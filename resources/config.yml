@@ -1,0 +1,63 @@
+config-version: 2
+
+# Registers the vanilla_overworld generator. Existing worlds using it require this to remain enabled.
+generation:
+  enabled: true
+  register-custom-biomes: true
+
+  features:
+    caves: true
+    ores: true
+    ground-cover: true
+    biome-decoration: true
+    structures: true
+
+  # Only used when generation.features.structures is enabled.
+  structures:
+    desert_well: true
+    swamp_hut: true
+    monster_room: true
+    jungle_temple: true
+    desert_pyramid: true
+    mineshaft: true
+    stronghold: true
+    pillager_outpost: true
+    fossil: true
+    ocean_ruin: true
+    igloo: true
+    shipwreck: true
+    ruined_portal: true
+    village: true
+    ancient_city: true
+    trail_ruins: true
+
+commands:
+  locate:
+    enabled: true
+    command-hints: true
+  summon:
+    # /summon <entity> [x y z]. Requires entities.enabled.
+    enabled: true
+    # Adds the registered entity list and position type to Bedrock's command UI.
+    command-hints: true
+
+entities:
+  enabled: true
+  # Instantiates every registered VanillaAltay entity once, logs failures, then closes them.
+  self-test-on-startup: false
+  behavior-ai: true
+  natural-spawning: true
+  override-altay-entities: true
+  interactions:
+    spawn-egg-overrides: true
+    mounts: true
+    owner-combat: true
+    anger-propagation: true
+  spawning:
+    interval-ticks: 20
+    monster-cap: 70
+    creature-cap: 10
+    water-creature-cap: 20
+    ambient-cap: 15
+    # Namespaced IDs, e.g. ["minecraft:phantom", "minecraft:bat"].
+    disabled-types: []

@@ -6,12 +6,13 @@ namespace VanillaAltay\world\generator\structure;
 
 use function array_keys;
 
-final class StructureRegistry{
-
+final class StructureRegistry
+{
 	/** @var Structure[]|null */
 	private static ?array $structures = null;
 
-	private function __construct(){
+	private function __construct()
+	{
 		//NOOP
 	}
 
@@ -19,16 +20,17 @@ final class StructureRegistry{
 	 * @return Structure[]
 	 * @phpstan-return array<string, Structure>
 	 */
-	public static function all() : array{
-		if(self::$structures === null){
+	public static function all() : array
+	{
+		if (self::$structures === null) {
 			self::$structures = [];
 			$structures = [
 				new DesertWell(), new SwampHut(), new MonsterRoom(), new JungleTemple(), new DesertPyramid(),
 				new Mineshaft(), new Stronghold(), new PillagerOutpost(), new Fossil(), new OceanRuin(),
-				new Igloo(), new Shipwreck(), new RuinedPortal(), new Village(), new AncientCity(), new TrailRuins()
+				new Igloo(), new Shipwreck(), new RuinedPortal(), new Village(), new AncientCity(), new TrailRuins(),
 			];
 
-			foreach($structures as $structure){
+			foreach ($structures as $structure) {
 				self::$structures[$structure->getName()] = $structure;
 			}
 		}
@@ -36,14 +38,16 @@ final class StructureRegistry{
 		return self::$structures;
 	}
 
-	public static function get(string $name) : ?Structure{
+	public static function get(string $name) : ?Structure
+	{
 		return self::all()[$name] ?? null;
 	}
 
 	/**
 	 * @return string[]
 	 */
-	public static function getNames() : array{
+	public static function getNames() : array
+	{
 		return array_keys(self::all());
 	}
 }

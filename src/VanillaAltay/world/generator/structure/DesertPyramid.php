@@ -13,19 +13,22 @@ use pocketmine\math\Facing;
 use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 
-final class DesertPyramid implements Structure{
-
+final class DesertPyramid implements Structure
+{
 	private const SALT = 14357617;
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "desert_pyramid";
 	}
 
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, 8, 32, fn(int $biomeId) => $biomeId === BiomeIds::DESERT);
 	}
 
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$builder = new StructureBuilder($world, $x, $y - 20, $z);
 
 		$sandstone = VanillaBlocks::SANDSTONE();
@@ -42,14 +45,14 @@ final class DesertPyramid implements Structure{
 		$blue = VanillaBlocks::STAINED_CLAY()->setColor(DyeColor::BLUE);
 		$chest = VanillaBlocks::CHEST();
 
-		for($x2 = 0; $x2 < 21; ++$x2){
-			for($z2 = 0; $z2 < 21; ++$z2){
+		for ($x2 = 0; $x2 < 21; ++$x2) {
+			for ($z2 = 0; $z2 < 21; ++$z2) {
 				$builder->fillDownward($x2, 13, $z2, $sandstone, 24);
 			}
 		}
 
 		$builder->fill(0, 14, 0, 20, 18, 20, $sandstone);
-		for($i = 1; $i <= 9; ++$i){
+		for ($i = 1; $i <= 9; ++$i) {
 			$builder->fill($i, $i + 18, $i, 20 - $i, $i + 18, 20 - $i, $sandstone);
 			$builder->clear($i + 1, $i + 18, $i + 1, 19 - $i, $i + 18, 19 - $i);
 		}
@@ -66,7 +69,7 @@ final class DesertPyramid implements Structure{
 		$builder->set(1, 19, 2, $sandstone);
 		$builder->set(1, 20, 2, $slab);
 		$builder->set(2, 19, 2, $stairsEast);
-		for($i = 0; $i < 2; ++$i){
+		for ($i = 0; $i < 2; ++$i) {
 			$builder->set(2, 21 + $i, 4 + $i, $stairsNorth);
 		}
 
@@ -82,11 +85,11 @@ final class DesertPyramid implements Structure{
 		$builder->set(19, 19, 2, $sandstone);
 		$builder->set(19, 20, 2, $slabTop);
 		$builder->set(18, 19, 2, $stairsWest);
-		for($i = 0; $i < 2; ++$i){
+		for ($i = 0; $i < 2; ++$i) {
 			$builder->set(18, 21 + $i, 4 + $i, $stairsNorth);
 		}
 
-		for($i = 0; $i < 2; ++$i){
+		for ($i = 0; $i < 2; ++$i) {
 			$o = $i << 4;
 			$builder->fill(1 + $o, 20, 0, 1 + $o, 21, 0, $cut);
 			$builder->fill(2 + $o, 20, 0, 2 + $o, 21, 0, $orange);
@@ -164,7 +167,7 @@ final class DesertPyramid implements Structure{
 		$builder->fill(2, 19, 12, 2, 19, 18, $sandstone);
 		$builder->fill(18, 19, 12, 18, 19, 18, $sandstone);
 		$builder->fill(3, 19, 18, 18, 19, 18, $sandstone);
-		for($i = 0; $i < 7; ++$i){
+		for ($i = 0; $i < 7; ++$i) {
 			$builder->set(4, 19, 5 + ($i << 1), $cut);
 			$builder->set(4, 20, 5 + ($i << 1), $chiseled);
 			$builder->set(16, 19, 5 + ($i << 1), $cut);
@@ -211,9 +214,10 @@ final class DesertPyramid implements Structure{
 	/**
 	 * Shell of the given block with a hollow interior, matching the two-state fill of the Java source.
 	 */
-	private function fillHollowed(StructureBuilder $builder, int $x1, int $y1, int $z1, int $x2, int $y2, int $z2, Block $block) : void{
+	private function fillHollowed(StructureBuilder $builder, int $x1, int $y1, int $z1, int $x2, int $y2, int $z2, Block $block) : void
+	{
 		$builder->fillHollow($x1, $y1, $z1, $x2, $y2, $z2, $block);
-		if($x2 - $x1 > 1 && $y2 - $y1 > 1 && $z2 - $z1 > 1){
+		if ($x2 - $x1 > 1 && $y2 - $y1 > 1 && $z2 - $z1 > 1) {
 			$builder->clear($x1 + 1, $y1 + 1, $z1 + 1, $x2 - 1, $y2 - 1, $z2 - 1);
 		}
 	}

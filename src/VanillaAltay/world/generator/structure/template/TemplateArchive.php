@@ -10,6 +10,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntArrayTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
+
 use function array_keys;
 use function dirname;
 use function file_get_contents;
@@ -25,8 +26,8 @@ use function zlib_decode;
  * Reads the structure archive: a tree of folders whose leaves carry an "object" tag holding one template.
  * Identifiers are the path through that tree, such as "igloo/top" or "woodland_mansion/1x1_a1".
  */
-final class TemplateArchive{
-
+final class TemplateArchive
+{
 	/**
 	 * @var CompoundTag[]
 	 * @phpstan-var array<string, CompoundTag>
@@ -43,9 +44,10 @@ final class TemplateArchive{
 
 	private static ?string $archive = null;
 
-	private function __construct(string $contents){
+	private function __construct(string $contents)
+	{
 		$data = zlib_decode($contents);
-		if($data === false){
+		if ($data === false) {
 			return;
 		}
 
@@ -55,12 +57,14 @@ final class TemplateArchive{
 	/**
 	 * Lets a caller supply the archive itself, for a test or for a plugin that ships its own.
 	 */
-	public static function setArchive(string $contents) : void{
+	public static function setArchive(string $contents) : void
+	{
 		self::$archive = $contents;
 		self::$instance = null;
 	}
 
-	public static function getInstance() : self{
+	public static function getInstance() : self
+	{
 		return self::$instance ??= new self(self::$archive ?? self::read());
 	}
 
@@ -68,19 +72,21 @@ final class TemplateArchive{
 	 * Chunks are generated on worker threads, which never run the plugin's startup code, so the archive is
 	 * found from this file's own location. That resolves inside a phar as well as in a plugin folder.
 	 */
-	private static function read() : string{
+	private static function read() : string
+	{
 		$path = dirname(__DIR__, 6) . "/resources/structures.nbt";
 
 		return is_file($path) ? (file_get_contents($path) ?: "") : "";
 	}
 
-	public function get(string $identifier) : ?StructureTemplate{
-		if(isset($this->parsed[$identifier])){
+	public function get(string $identifier) : ?StructureTemplate
+	{
+		if (isset($this->parsed[$identifier])) {
 			return $this->parsed[$identifier];
 		}
 
 		$object = $this->raw[$identifier] ?? null;
-		if($object === null){
+		if ($object === null) {
 			return null;
 		}
 
@@ -88,19 +94,19 @@ final class TemplateArchive{
 		$palette = $object->getTag("palette");
 		$blocks = $object->getTag("blocks");
 
-		if(!$size instanceof IntArrayTag || !$palette instanceof ListTag || !$blocks instanceof ByteArrayTag){
+		if (!$size instanceof IntArrayTag || !$palette instanceof ListTag || !$blocks instanceof ByteArrayTag) {
 			return null;
 		}
 
 		$states = [];
-		foreach($palette->getValue() as $entry){
+		foreach ($palette->getValue() as $entry) {
 			$states[] = $entry instanceof IntTag ? BlockStateHashes::toStateId($entry->getValue()) : null;
 		}
 
 		[$sizeX, $sizeY, $sizeZ] = $size->getValue();
 
 		$hashes = [];
-		foreach($palette->getValue() as $entry){
+		foreach ($palette->getValue() as $entry) {
 			$hashes[] = $entry instanceof IntTag ? $entry->getValue() : null;
 		}
 
@@ -118,51 +124,55 @@ final class TemplateArchive{
 	 *
 	 * @return JigsawBlock[]
 	 */
-	private function readJigsaws(CompoundTag $object, int $sizeX, int $sizeY, array $hashes, string $blocks) : array{
+	private function readJigsaws(CompoundTag $object, int $sizeX, int $sizeY, array $hashes, string $blocks) : array
+	{
 		$list = $object->getTag("jigsaw");
-		if(!$list instanceof ListTag){
+		if (!$list instanceof ListTag) {
 			return [];
 		}
 
 		$jigsaws = [];
-		foreach($list->getValue() as $entry){
-			if(!$entry instanceof CompoundTag){
+		foreach ($list->getValue() as $entry) {
+			if (!$entry instanceof CompoundTag) {
 				continue;
 			}
 
 			$pos = $entry->getTag("pos");
-			if(!$pos instanceof IntArrayTag){
+			if (!$pos instanceof IntArrayTag) {
 				continue;
 			}
 
 			[$x, $y, $z] = $pos->getValue();
 
 			$index = $x + ($sizeX * ($y + ($sizeY * $z)));
-			if($index < 0 || $index >= strlen($blocks)){
+			if ($index < 0 || $index >= strlen($blocks)) {
 				continue;
 			}
 
 			$hash = $hashes[ord($blocks[$index]) - 1] ?? null;
 			$orientation = $hash === null ? null : JigsawStates::getOrientation($hash);
-			if($orientation === null){
+			if ($orientation === null) {
 				continue;
 			}
 
 			$jigsaws[] = new JigsawBlock(
-				$x, $y, $z,
+				$x,
+				$y,
+				$z,
 				self::stripNamespace($entry->getString("name", "")),
 				self::stripNamespace($entry->getString("target", "")),
 				self::stripNamespace($entry->getString("pool", "")),
 				$entry->getString("joint", "rollable") === "rollable",
 				$orientation[0],
-				$orientation[1]
+				$orientation[1],
 			);
 		}
 
 		return $jigsaws;
 	}
 
-	private static function stripNamespace(string $key) : string{
+	private static function stripNamespace(string $key) : string
+	{
 		$separator = strpos($key, ":");
 
 		return $separator === false ? $key : substr($key, $separator + 1);
@@ -171,14 +181,15 @@ final class TemplateArchive{
 	/**
 	 * @return string[]
 	 */
-	public function getIdentifiers(string $prefix = "") : array{
-		if($prefix === ""){
+	public function getIdentifiers(string $prefix = "") : array
+	{
+		if ($prefix === "") {
 			return array_keys($this->raw);
 		}
 
 		$matches = [];
-		foreach(array_keys($this->raw) as $identifier){
-			if(str_starts_with($identifier, $prefix)){
+		foreach (array_keys($this->raw) as $identifier) {
+			if (str_starts_with($identifier, $prefix)) {
 				$matches[] = $identifier;
 			}
 		}
@@ -186,16 +197,17 @@ final class TemplateArchive{
 		return $matches;
 	}
 
-	private function collect(CompoundTag $tag, string $prefix) : void{
-		foreach($tag as $name => $child){
-			if(!$child instanceof CompoundTag){
+	private function collect(CompoundTag $tag, string $prefix) : void
+	{
+		foreach ($tag as $name => $child) {
+			if (!$child instanceof CompoundTag) {
 				continue;
 			}
 
 			$identifier = $prefix === "" ? $name : $prefix . "/" . $name;
 
 			$object = $child->getCompoundTag("object");
-			if($object !== null){
+			if ($object !== null) {
 				$this->raw[$identifier] = $object;
 				continue;
 			}

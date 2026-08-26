@@ -11,6 +11,7 @@ use VanillaAltay\world\generator\structure\mineshaft\BoundingBox;
 use VanillaAltay\world\generator\structure\template\JigsawBlock;
 use VanillaAltay\world\generator\structure\template\StructureTemplate;
 use VanillaAltay\world\generator\structure\template\TemplateArchive;
+
 use function array_shift;
 use function count;
 
@@ -21,8 +22,8 @@ use function count;
  * the parent and carries the name the parent targeted, then kept if it does not overlap anything already
  * placed. The result is a list of positioned templates, in world coordinates relative to the origin.
  */
-final class JigsawAssembler{
-
+final class JigsawAssembler
+{
 	private const EMPTY_POOL = "empty";
 
 	/**
@@ -32,11 +33,12 @@ final class JigsawAssembler{
 	 *
 	 * @return JigsawPiece[]
 	 */
-	public static function assemble(array $pools, string $entryPool, int $maxDepth, int $maxPieces, Random $random, ?BoundingBox $clip = null) : array{
+	public static function assemble(array $pools, string $entryPool, int $maxDepth, int $maxPieces, Random $random, ?BoundingBox $clip = null) : array
+	{
 		$archive = TemplateArchive::getInstance();
 
 		$root = self::createRoot($archive, $pools[$entryPool] ?? [], $random->nextBoundedInt(4), $random, $clip);
-		if($root === null){
+		if ($root === null) {
 			return [];
 		}
 
@@ -44,13 +46,13 @@ final class JigsawAssembler{
 		$connected = [];
 		$pending = [[$root, 0]];
 
-		while(count($pending) > 0 && count($pieces) < $maxPieces){
+		while (count($pending) > 0 && count($pieces) < $maxPieces) {
 			[$piece, $depth] = array_shift($pending);
-			if($depth >= $maxDepth){
+			if ($depth >= $maxDepth) {
 				continue;
 			}
 
-			foreach(self::shuffle($piece->template->getJigsaws(), $random) as $jigsaw){
+			foreach (self::shuffle($piece->template->getJigsaws(), $random) as $jigsaw) {
 				[$sourceX, $sourceZ] = $piece->template->rotateOffset($jigsaw->x, $jigsaw->z, $piece->rotation);
 
 				$sourceWorldX = $piece->x + $sourceX;
@@ -58,17 +60,17 @@ final class JigsawAssembler{
 				$sourceWorldZ = $piece->z + $sourceZ;
 
 				$key = $sourceWorldX . ":" . $sourceWorldY . ":" . $sourceWorldZ;
-				if(isset($connected[$key])){
+				if (isset($connected[$key])) {
 					continue;
 				}
 
 				$entries = $pools[$jigsaw->pool] ?? null;
-				if($entries === null){
+				if ($entries === null) {
 					continue;
 				}
 
 				$child = self::connect($archive, $entries, $piece, $jigsaw, $sourceWorldX, $sourceWorldY, $sourceWorldZ, $pieces, $connected, $random, $clip);
-				if($child === null){
+				if ($child === null) {
 					continue;
 				}
 
@@ -78,7 +80,7 @@ final class JigsawAssembler{
 				$connected[$childKey] = true;
 				$pieces[] = $childPiece;
 
-				if($depth + 1 < $maxDepth){
+				if ($depth + 1 < $maxDepth) {
 					$pending[] = [$childPiece, $depth + 1];
 				}
 			}
@@ -106,8 +108,8 @@ final class JigsawAssembler{
 		array $pieces,
 		array $connected,
 		Random $random,
-		?BoundingBox $clip
-	) : ?array{
+		?BoundingBox $clip,
+	) : ?array {
 		$front = self::turn($jigsaw->facing, $parent->rotation);
 		$top = self::turn($jigsaw->top, $parent->rotation);
 		$back = Facing::opposite($front);
@@ -119,31 +121,31 @@ final class JigsawAssembler{
 		$targetZ = $sourceWorldZ + $stepZ;
 
 		$key = $targetX . ":" . $targetY . ":" . $targetZ;
-		if(isset($connected[$key])){
+		if (isset($connected[$key])) {
 			return null;
 		}
 
-		foreach(self::weighted($entries, $random) as $identifier){
-			if($identifier === self::EMPTY_POOL){
+		foreach (self::weighted($entries, $random) as $identifier) {
+			if ($identifier === self::EMPTY_POOL) {
 				return null;
 			}
 
 			$template = $archive->get($identifier);
-			if($template === null){
+			if ($template === null) {
 				continue;
 			}
 
-			foreach(self::shuffle([StructureTemplate::ROTATION_NONE, StructureTemplate::ROTATION_90, StructureTemplate::ROTATION_180, StructureTemplate::ROTATION_270], $random) as $rotation){
-				foreach(self::shuffle($template->getJigsaws(), $random) as $candidate){
-					if($candidate->name !== $jigsaw->target){
+			foreach (self::shuffle([StructureTemplate::ROTATION_NONE, StructureTemplate::ROTATION_90, StructureTemplate::ROTATION_180, StructureTemplate::ROTATION_270], $random) as $rotation) {
+				foreach (self::shuffle($template->getJigsaws(), $random) as $candidate) {
+					if ($candidate->name !== $jigsaw->target) {
 						continue;
 					}
 
-					if(self::turn($candidate->facing, $rotation) !== $back){
+					if (self::turn($candidate->facing, $rotation) !== $back) {
 						continue;
 					}
 
-					if(!$jigsaw->rollable && self::turn($candidate->top, $rotation) !== $top){
+					if (!$jigsaw->rollable && self::turn($candidate->top, $rotation) !== $top) {
 						continue;
 					}
 
@@ -154,11 +156,11 @@ final class JigsawAssembler{
 					$z = $targetZ - $offsetZ;
 
 					$box = self::boundingBox($template, $x, $y, $z, $rotation);
-					if($clip !== null && !self::contains($clip, $box)){
+					if ($clip !== null && !self::contains($clip, $box)) {
 						continue;
 					}
 
-					if(self::overlaps($pieces, $box, $parent)){
+					if (self::overlaps($pieces, $box, $parent)) {
 						continue;
 					}
 
@@ -173,15 +175,16 @@ final class JigsawAssembler{
 	/**
 	 * @phpstan-param list<array{string, int}> $entries
 	 */
-	private static function createRoot(TemplateArchive $archive, array $entries, int $rotation, Random $random, ?BoundingBox $clip) : ?JigsawPiece{
-		foreach(self::weighted($entries, $random) as $identifier){
+	private static function createRoot(TemplateArchive $archive, array $entries, int $rotation, Random $random, ?BoundingBox $clip) : ?JigsawPiece
+	{
+		foreach (self::weighted($entries, $random) as $identifier) {
 			$template = $archive->get($identifier);
-			if($template === null){
+			if ($template === null) {
 				continue;
 			}
 
 			$box = self::boundingBox($template, 0, 0, 0, $rotation);
-			if($clip !== null && !self::contains($clip, $box)){
+			if ($clip !== null && !self::contains($clip, $box)) {
 				continue;
 			}
 
@@ -191,7 +194,8 @@ final class JigsawAssembler{
 		return null;
 	}
 
-	private static function boundingBox(StructureTemplate $template, int $x, int $y, int $z, int $rotation) : BoundingBox{
+	private static function boundingBox(StructureTemplate $template, int $x, int $y, int $z, int $rotation) : BoundingBox
+	{
 		[$sizeX, $sizeZ] = $template->getRotatedSize($rotation);
 
 		return new BoundingBox($x, $y, $z, $x + $sizeX - 1, $y + $template->getSizeY() - 1, $z + $sizeZ - 1);
@@ -200,9 +204,10 @@ final class JigsawAssembler{
 	/**
 	 * @param JigsawPiece[] $pieces
 	 */
-	private static function overlaps(array $pieces, BoundingBox $box, JigsawPiece $parent) : bool{
-		foreach($pieces as $piece){
-			if($piece !== $parent && $piece->boundingBox->intersects($box)){
+	private static function overlaps(array $pieces, BoundingBox $box, JigsawPiece $parent) : bool
+	{
+		foreach ($pieces as $piece) {
+			if ($piece !== $parent && $piece->boundingBox->intersects($box)) {
 				return true;
 			}
 		}
@@ -210,7 +215,8 @@ final class JigsawAssembler{
 		return false;
 	}
 
-	private static function contains(BoundingBox $clip, BoundingBox $box) : bool{
+	private static function contains(BoundingBox $clip, BoundingBox $box) : bool
+	{
 		return $box->x0 >= $clip->x0 && $box->x1 <= $clip->x1
 			&& $box->y0 >= $clip->y0 && $box->y1 <= $clip->y1
 			&& $box->z0 >= $clip->z0 && $box->z1 <= $clip->z1;
@@ -221,10 +227,11 @@ final class JigsawAssembler{
 	 *
 	 * @return string[]
 	 */
-	private static function weighted(array $entries, Random $random) : array{
+	private static function weighted(array $entries, Random $random) : array
+	{
 		$identifiers = [];
-		foreach($entries as [$identifier, $weight]){
-			for($i = 0; $i < $weight; ++$i){
+		foreach ($entries as [$identifier, $weight]) {
+			for ($i = 0; $i < $weight; ++$i) {
 				$identifiers[] = $identifier;
 			}
 		}
@@ -238,8 +245,9 @@ final class JigsawAssembler{
 	 *
 	 * @return T[]
 	 */
-	private static function shuffle(array $values, Random $random) : array{
-		for($i = count($values) - 1; $i > 0; --$i){
+	private static function shuffle(array $values, Random $random) : array
+	{
+		for ($i = count($values) - 1; $i > 0; --$i) {
 			$index = $random->nextBoundedInt($i + 1);
 			$swap = $values[$i];
 			$values[$i] = $values[$index];
@@ -252,12 +260,13 @@ final class JigsawAssembler{
 	/**
 	 * The templates turn clockwise, so a direction they carry has to turn the same way.
 	 */
-	private static function turn(int $facing, int $rotation) : int{
-		if(Facing::axis($facing) === Axis::Y){
+	private static function turn(int $facing, int $rotation) : int
+	{
+		if (Facing::axis($facing) === Axis::Y) {
 			return $facing;
 		}
 
-		for($i = 0; $i < $rotation; ++$i){
+		for ($i = 0; $i < $rotation; ++$i) {
 			$facing = Facing::rotateY($facing, true);
 		}
 
@@ -268,14 +277,15 @@ final class JigsawAssembler{
 	 * @return int[]
 	 * @phpstan-return array{int, int, int}
 	 */
-	private static function step(int $facing) : array{
-		return match($facing){
+	private static function step(int $facing) : array
+	{
+		return match ($facing) {
 			Facing::DOWN => [0, -1, 0],
 			Facing::UP => [0, 1, 0],
 			Facing::NORTH => [0, 0, -1],
 			Facing::SOUTH => [0, 0, 1],
 			Facing::WEST => [-1, 0, 0],
-			default => [1, 0, 0]
+			default => [1, 0, 0],
 		};
 	}
 }

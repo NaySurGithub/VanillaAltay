@@ -10,14 +10,14 @@ use VanillaAltay\world\generator\structure\template\StructureTemplate;
 /**
  * One template of an assembled structure, placed relative to the structure's origin.
  */
-final class JigsawPiece{
-
+final class JigsawPiece
+{
 	public function __construct(
 		public StructureTemplate $template,
 		public int $x,
 		public int $y,
 		public int $z,
 		public int $rotation,
-		public BoundingBox $boundingBox
-	){}
+		public BoundingBox $boundingBox,
+	) {}
 }

@@ -10,9 +10,10 @@ use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 use VanillaAltay\world\generator\structure\mineshaft\BoundingBox;
 
-final class RightTurn extends StrongholdPiece{
-
-	public function __construct(int $genDepth, Random $random, BoundingBox $boundingBox, ?int $orientation){
+final class RightTurn extends StrongholdPiece
+{
+	public function __construct(int $genDepth, Random $random, BoundingBox $boundingBox, ?int $orientation)
+	{
 		parent::__construct($genDepth);
 
 		$this->setOrientation($orientation);
@@ -23,28 +24,31 @@ final class RightTurn extends StrongholdPiece{
 	/**
 	 * @param StrongholdPiece[] $pieces
 	 */
-	public static function createPiece(array $pieces, Random $random, int $x, int $y, int $z, ?int $orientation, int $genDepth) : ?self{
+	public static function createPiece(array $pieces, Random $random, int $x, int $y, int $z, ?int $orientation, int $genDepth) : ?self
+	{
 		$box = self::orientBox($x, $y, $z, -1, -1, 0, 5, 5, 5, $orientation);
 
 		return self::isOkBox($box) && self::findCollisionPiece($pieces, $box) === null ? new self($genDepth, $random, $box, $orientation) : null;
 	}
 
-	public function addChildren(PieceGenerator $generator, Random $random) : void{
-		if($this->orientation !== Facing::NORTH && $this->orientation !== Facing::EAST){
+	public function addChildren(PieceGenerator $generator, Random $random) : void
+	{
+		if ($this->orientation !== Facing::NORTH && $this->orientation !== Facing::EAST) {
 			$this->generateSmallDoorChildLeft($generator, $random, 1, 1);
-		}else{
+		} else {
 			$this->generateSmallDoorChildRight($generator, $random, 1, 1);
 		}
 	}
 
-	public function postProcess(ChunkManager $world, Random $random, BoundingBox $clip) : bool{
+	public function postProcess(ChunkManager $world, Random $random, BoundingBox $clip) : bool
+	{
 		$this->generateBoxSelector($world, $clip, $random, 0, 0, 0, 4, 4, 4);
 		$this->generateSmallDoor($world, $clip, $this->entryDoor, 1, 1, 0);
 
 		$air = VanillaBlocks::AIR();
-		if($this->orientation !== Facing::NORTH && $this->orientation !== Facing::EAST){
+		if ($this->orientation !== Facing::NORTH && $this->orientation !== Facing::EAST) {
 			$this->generateBox($world, $clip, 0, 1, 1, 0, 3, 3, $air, $air);
-		}else{
+		} else {
 			$this->generateBox($world, $clip, 4, 1, 1, 4, 3, 3, $air, $air);
 		}
 

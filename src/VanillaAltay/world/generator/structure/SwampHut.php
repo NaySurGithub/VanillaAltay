@@ -10,19 +10,22 @@ use pocketmine\math\Facing;
 use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 
-final class SwampHut implements Structure{
-
+final class SwampHut implements Structure
+{
 	private const SALT = 14357620;
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "swamp_hut";
 	}
 
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, 8, 32, fn(int $biomeId) => $biomeId === BiomeIds::SWAMPLAND);
 	}
 
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$builder = new StructureBuilder($world, $x, $y, $z);
 
 		$planks = VanillaBlocks::SPRUCE_PLANKS();
@@ -48,7 +51,7 @@ final class SwampHut implements Structure{
 		$builder->fill(0, 4, 8, 6, 4, 8, (clone $stairs)->setFacing(Facing::SOUTH));
 		$builder->fill(0, 4, 2, 0, 4, 7, (clone $stairs)->setFacing(Facing::WEST));
 
-		foreach([[1, 2], [5, 2], [1, 7], [5, 7]] as [$px, $pz]){
+		foreach ([[1, 2], [5, 2], [1, 7], [5, 7]] as [$px, $pz]) {
 			$builder->fill($px, 0, $pz, $px, 3, $pz, $log);
 			$builder->fillDownward($px, -1, $pz, $log);
 		}

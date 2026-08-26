@@ -11,6 +11,7 @@ use VanillaAltay\world\generator\structure\template\StructureTemplate;
 use VanillaAltay\world\generator\structure\template\TemplateArchive;
 use VanillaAltay\world\generator\structure\village\VillagePiece;
 use VanillaAltay\world\generator\structure\village\VillageVariant;
+
 use function array_key_first;
 use function count;
 use function intdiv;
@@ -20,8 +21,8 @@ use function intdiv;
  * archive. Mojang assembles a village from the jigsaw blocks buried in those same templates; the archive keeps
  * that data but the reader does not expose it, so the streets are laid out here instead.
  */
-final class Village implements SpreadStructure{
-
+final class Village implements SpreadStructure
+{
 	private const SALT = 10387312;
 	private const MIN_DISTANCE = 8;
 	private const MAX_DISTANCE = 34;
@@ -50,25 +51,30 @@ final class Village implements SpreadStructure{
 	 */
 	private array $layouts = [];
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "village";
 	}
 
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, self::MIN_DISTANCE, self::MAX_DISTANCE, fn(int $biomeId) => VillageVariant::forBiome($biomeId) !== null);
 	}
 
-	public function getChunkReach() : int{
+	public function getChunkReach() : int
+	{
 		return self::CHUNK_REACH;
 	}
 
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$this->placeAround($world, $random, $x >> 4, $z >> 4, $x >> 4, $z >> 4);
 	}
 
-	public function placeAround(ChunkManager $world, Random $random, int $originChunkX, int $originChunkZ, int $targetChunkX, int $targetChunkZ) : void{
+	public function placeAround(ChunkManager $world, Random $random, int $originChunkX, int $originChunkZ, int $targetChunkX, int $targetChunkZ) : void
+	{
 		$variant = $this->getVariant($world, $originChunkX, $originChunkZ, $targetChunkX, $targetChunkZ);
-		if($variant === null){
+		if ($variant === null) {
 			return;
 		}
 
@@ -76,12 +82,16 @@ final class Village implements SpreadStructure{
 		$pieces = $this->getLayout($random, $layoutSeed, $originChunkX, $originChunkZ, $variant);
 
 		$clip = new BoundingBox(
-			($targetChunkX - 1) << 4, $world->getMinY(), ($targetChunkZ - 1) << 4,
-			(($targetChunkX + 2) << 4) - 1, $world->getMaxY() - 1, (($targetChunkZ + 2) << 4) - 1
+			($targetChunkX - 1) << 4,
+			$world->getMinY(),
+			($targetChunkZ - 1) << 4,
+			(($targetChunkX + 2) << 4) - 1,
+			$world->getMaxY() - 1,
+			(($targetChunkZ + 2) << 4) - 1,
 		);
 
-		foreach($pieces as $piece){
-			if(!$piece->boundingBox->intersects($clip)){
+		foreach ($pieces as $piece) {
+			if (!$piece->boundingBox->intersects($clip)) {
 				continue;
 			}
 
@@ -93,7 +103,8 @@ final class Village implements SpreadStructure{
 	 * The origin decides which village is built, but a chunk far enough to rebuild the layout rarely has it
 	 * loaded, so its own biome answers instead.
 	 */
-	private function getVariant(ChunkManager $world, int $originChunkX, int $originChunkZ, int $targetChunkX, int $targetChunkZ) : ?VillageVariant{
+	private function getVariant(ChunkManager $world, int $originChunkX, int $originChunkZ, int $targetChunkX, int $targetChunkZ) : ?VillageVariant
+	{
 		$chunk = $world->getChunk($originChunkX, $originChunkZ) ?? $world->getChunk($targetChunkX, $targetChunkZ);
 
 		return $chunk === null ? null : VillageVariant::forBiome($chunk->getBiomeId(7, 0, 7));
@@ -102,14 +113,15 @@ final class Village implements SpreadStructure{
 	/**
 	 * @return VillagePiece[]
 	 */
-	private function getLayout(Random $random, int $layoutSeed, int $chunkX, int $chunkZ, VillageVariant $variant) : array{
-		if(isset($this->layouts[$layoutSeed])){
+	private function getLayout(Random $random, int $layoutSeed, int $chunkX, int $chunkZ, VillageVariant $variant) : array
+	{
+		if (isset($this->layouts[$layoutSeed])) {
 			return $this->layouts[$layoutSeed];
 		}
 
 		$pieces = $this->buildLayout($random, $layoutSeed, $chunkX, $chunkZ, $variant);
 
-		if(count($this->layouts) >= self::LAYOUT_CACHE_SIZE){
+		if (count($this->layouts) >= self::LAYOUT_CACHE_SIZE) {
 			//the keys are layout seeds, so shifting would renumber them and hand back the wrong layout
 			unset($this->layouts[array_key_first($this->layouts)]);
 		}
@@ -120,7 +132,8 @@ final class Village implements SpreadStructure{
 	/**
 	 * @return VillagePiece[]
 	 */
-	private function buildLayout(Random $random, int $layoutSeed, int $chunkX, int $chunkZ, VillageVariant $variant) : array{
+	private function buildLayout(Random $random, int $layoutSeed, int $chunkX, int $chunkZ, VillageVariant $variant) : array
+	{
 		$archive = TemplateArchive::getInstance();
 
 		$centerX = ($chunkX << 4) + 8;
@@ -128,7 +141,7 @@ final class Village implements SpreadStructure{
 
 		$index = 0;
 		$centre = $this->pick($archive, $random, $layoutSeed, $index, $variant->townCenters);
-		if($centre === null){
+		if ($centre === null) {
 			return [];
 		}
 
@@ -136,12 +149,12 @@ final class Village implements SpreadStructure{
 		$pieces = [VillagePiece::create($centre, $centerX - intdiv($centreSizeX, 2), self::SURFACE_Y, $centerZ - intdiv($centreSizeZ, 2), StructureTemplate::ROTATION_NONE)];
 
 		$streets = [];
-		for($direction = 0; $direction < 4; ++$direction){
+		for ($direction = 0; $direction < 4; ++$direction) {
 			$this->buildArm($archive, $random, $layoutSeed, $index, $variant, $pieces, $streets, $centerX, $centerZ, $direction);
 		}
 
 		//the streets are all laid before a single house goes up, or the first arm's houses would block the next
-		foreach($streets as [$street, $direction]){
+		foreach ($streets as [$street, $direction]) {
 			$this->addHouse($archive, $random, $layoutSeed, $index, $variant, $pieces, $street, $direction, -1);
 			$this->addHouse($archive, $random, $layoutSeed, $index, $variant, $pieces, $street, $direction, 1);
 		}
@@ -154,21 +167,22 @@ final class Village implements SpreadStructure{
 	 * @phpstan-param array<int, VillagePiece> $pieces
 	 * @phpstan-param array<int, array{VillagePiece, int}> $streets
 	 */
-	private function buildArm(TemplateArchive $archive, Random $random, int $layoutSeed, int &$index, VillageVariant $variant, array &$pieces, array &$streets, int $centerX, int $centerZ, int $direction) : void{
+	private function buildArm(TemplateArchive $archive, Random $random, int $layoutSeed, int &$index, VillageVariant $variant, array &$pieces, array &$streets, int $centerX, int $centerZ, int $direction) : void
+	{
 		$centre = $pieces[0]->boundingBox;
 
-		$cursor = match($direction){
+		$cursor = match ($direction) {
 			0 => $centre->x1 + 1,
 			1 => $centre->z1 + 1,
 			2 => $centre->x0 - 1,
-			default => $centre->z0 - 1
+			default => $centre->z0 - 1,
 		};
 
 		$travelled = 0;
 
-		while($travelled < self::ARM_LENGTH){
+		while ($travelled < self::ARM_LENGTH) {
 			$template = $this->pick($archive, $random, $layoutSeed, $index, $variant->streets);
-			if($template === null){
+			if ($template === null) {
 				return;
 			}
 
@@ -176,7 +190,7 @@ final class Village implements SpreadStructure{
 
 			//an arm laid later meets the corner of an earlier one, and slides past it rather than stopping there
 			$length = 1;
-			if(!$this->collides($pieces, $street->boundingBox)){
+			if (!$this->collides($pieces, $street->boundingBox)) {
 				$pieces[] = $street;
 				$streets[] = [$street, $direction];
 				$length = ($direction & 1) === 0 ? $street->boundingBox->getXSpan() : $street->boundingBox->getZSpan();
@@ -187,12 +201,12 @@ final class Village implements SpreadStructure{
 		}
 
 		$template = $this->pick($archive, $random, $layoutSeed, $index, $variant->terminators);
-		if($template === null){
+		if ($template === null) {
 			return;
 		}
 
 		$cap = $this->alongArm($template, $direction, $cursor, $centerX, $centerZ, self::SURFACE_Y - 1);
-		if(!$this->collides($pieces, $cap->boundingBox)){
+		if (!$this->collides($pieces, $cap->boundingBox)) {
 			$pieces[] = $cap;
 		}
 	}
@@ -201,14 +215,15 @@ final class Village implements SpreadStructure{
 	 * Streets run along X in the archive, so turning one by the arm's own direction points it outwards. The
 	 * cursor is the leading edge of the arm, which is the far corner when it runs towards a negative axis.
 	 */
-	private function alongArm(StructureTemplate $template, int $direction, int $cursor, int $centerX, int $centerZ, int $originY) : VillagePiece{
+	private function alongArm(StructureTemplate $template, int $direction, int $cursor, int $centerX, int $centerZ, int $originY) : VillagePiece
+	{
 		[$sizeX, $sizeZ] = VillagePiece::footprint($template, $direction);
 
-		return match($direction){
+		return match ($direction) {
 			0 => VillagePiece::create($template, $cursor, $originY, $centerZ - intdiv($sizeZ, 2), $direction),
 			1 => VillagePiece::create($template, $centerX - intdiv($sizeX, 2), $originY, $cursor, $direction),
 			2 => VillagePiece::create($template, $cursor - $sizeX + 1, $originY, $centerZ - intdiv($sizeZ, 2), $direction),
-			default => VillagePiece::create($template, $centerX - intdiv($sizeX, 2), $originY, $cursor - $sizeZ + 1, $direction)
+			default => VillagePiece::create($template, $centerX - intdiv($sizeX, 2), $originY, $cursor - $sizeZ + 1, $direction),
 		};
 	}
 
@@ -216,14 +231,15 @@ final class Village implements SpreadStructure{
 	 * @param VillagePiece[] $pieces
 	 * @phpstan-param array<int, VillagePiece> $pieces
 	 */
-	private function addHouse(TemplateArchive $archive, Random $random, int $layoutSeed, int &$index, VillageVariant $variant, array &$pieces, VillagePiece $street, int $direction, int $side) : void{
+	private function addHouse(TemplateArchive $archive, Random $random, int $layoutSeed, int &$index, VillageVariant $variant, array &$pieces, VillagePiece $street, int $direction, int $side) : void
+	{
 		$random->setSeed($layoutSeed ^ ($index++ * 0x9E3779B1));
-		if($random->nextBoundedInt(100) >= self::HOUSE_CHANCE){
+		if ($random->nextBoundedInt(100) >= self::HOUSE_CHANCE) {
 			return;
 		}
 
 		$template = $this->pick($archive, $random, $layoutSeed, $index, $variant->houses);
-		if($template === null){
+		if ($template === null) {
 			return;
 		}
 
@@ -231,16 +247,16 @@ final class Village implements SpreadStructure{
 		[$sizeX, $sizeZ] = VillagePiece::footprint($template, $rotation);
 		$box = $street->boundingBox;
 
-		if(($direction & 1) === 0){
+		if (($direction & 1) === 0) {
 			$originX = $box->x0;
 			$originZ = $side < 0 ? $box->z0 - $sizeZ - self::HOUSE_GAP : $box->z1 + 1 + self::HOUSE_GAP;
-		}else{
+		} else {
 			$originZ = $box->z0;
 			$originX = $side < 0 ? $box->x0 - $sizeX - self::HOUSE_GAP : $box->x1 + 1 + self::HOUSE_GAP;
 		}
 
 		$house = VillagePiece::create($template, $originX, self::SURFACE_Y, $originZ, $rotation);
-		if($this->collides($pieces, $house->boundingBox)){
+		if ($this->collides($pieces, $house->boundingBox)) {
 			return;
 		}
 
@@ -252,9 +268,10 @@ final class Village implements SpreadStructure{
 	 *
 	 * @param string[] $identifiers
 	 */
-	private function pick(TemplateArchive $archive, Random $random, int $layoutSeed, int &$index, array $identifiers) : ?StructureTemplate{
+	private function pick(TemplateArchive $archive, Random $random, int $layoutSeed, int &$index, array $identifiers) : ?StructureTemplate
+	{
 		$count = count($identifiers);
-		if($count === 0){
+		if ($count === 0) {
 			return null;
 		}
 
@@ -266,9 +283,10 @@ final class Village implements SpreadStructure{
 	/**
 	 * @param VillagePiece[] $pieces
 	 */
-	private function collides(array $pieces, BoundingBox $box) : bool{
-		foreach($pieces as $piece){
-			if($piece->boundingBox->intersects($box)){
+	private function collides(array $pieces, BoundingBox $box) : bool
+	{
+		foreach ($pieces as $piece) {
+			if ($piece->boundingBox->intersects($box)) {
 				return true;
 			}
 		}

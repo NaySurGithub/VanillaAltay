@@ -12,19 +12,22 @@ use pocketmine\math\Facing;
 use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 
-final class JungleTemple implements Structure{
-
+final class JungleTemple implements Structure
+{
 	private const SALT = 14357619;
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "jungle_temple";
 	}
 
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, 8, 32, fn(int $biomeId) => $biomeId === BiomeIds::JUNGLE);
 	}
 
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$builder = new StructureBuilder($world, $x, $y - 3, $z);
 
 		$mossy = VanillaBlocks::MOSSY_COBBLESTONE();
@@ -103,7 +106,7 @@ final class JungleTemple implements Structure{
 		$this->fillRandom($builder, $random, 7, 8, 0, 7, 9, 0);
 		$this->fillRandom($builder, $random, 9, 8, 0, 9, 9, 0);
 		$this->fillRandom($builder, $random, 5, 10, 0, 6, 10, 0);
-		for($i = 0; $i < 6; ++$i){
+		for ($i = 0; $i < 6; ++$i) {
 			$this->fillRandom($builder, $random, 11, 8, 2 + ($i << 1), 11, 9, 2 + ($i << 1));
 			$this->fillRandom($builder, $random, 0, 8, 2 + ($i << 1), 0, 9, 2 + ($i << 1));
 		}
@@ -130,10 +133,10 @@ final class JungleTemple implements Structure{
 		$builder->fill(5, 13, 8, 6, 13, 8, $stairsS);
 
 		// 1st floor inside
-		for($i = 0; $i < 6; ++$i){
+		for ($i = 0; $i < 6; ++$i) {
 			$this->fillRandom($builder, $random, 1, 3, 2 + ($i << 1), 3, 3, 2 + ($i << 1));
 		}
-		for($i = 0; $i < 7; ++$i){
+		for ($i = 0; $i < 7; ++$i) {
 			$this->fillRandom($builder, $random, 1, 1, 1 + ($i << 1), 1, 2, 1 + ($i << 1));
 		}
 		$builder->set(2, 2, 1, $this->randomStone($random));
@@ -192,13 +195,13 @@ final class JungleTemple implements Structure{
 		$builder->set(9, 1, 10, (clone VanillaBlocks::CHEST())->setFacing(Facing::NORTH));
 
 		// 2nd floor inside
-		for($i = 0; $i < 4; ++$i){
+		for ($i = 0; $i < 4; ++$i) {
 			$builder->fill(5, 4 - $i, 6 + $i, 6, 4 - $i, 6 + $i, $stairsS);
 		}
 		$this->fillRandom($builder, $random, 4, 5, 10, 7, 6, 10);
 		$builder->set(4, 5, 9, $this->randomStone($random));
 		$builder->set(7, 5, 9, $this->randomStone($random));
-		for($i = 0; $i < 3; ++$i){
+		for ($i = 0; $i < 3; ++$i) {
 			$builder->set(7, 5 + $i, 8 + $i, $stairsN);
 			$builder->set(4, 5 + $i, 8 + $i, $stairsN);
 		}
@@ -209,14 +212,16 @@ final class JungleTemple implements Structure{
 		$builder->set(4, 8, 5, $stairsW);
 	}
 
-	private function randomStone(Random $random) : Block{
+	private function randomStone(Random $random) : Block
+	{
 		return $random->nextBoundedInt(10) < 4 ? VanillaBlocks::COBBLESTONE() : VanillaBlocks::MOSSY_COBBLESTONE();
 	}
 
-	private function fillRandom(StructureBuilder $builder, Random $random, int $x1, int $y1, int $z1, int $x2, int $y2, int $z2) : void{
-		for($y = $y1; $y <= $y2; ++$y){
-			for($x = $x1; $x <= $x2; ++$x){
-				for($z = $z1; $z <= $z2; ++$z){
+	private function fillRandom(StructureBuilder $builder, Random $random, int $x1, int $y1, int $z1, int $x2, int $y2, int $z2) : void
+	{
+		for ($y = $y1; $y <= $y2; ++$y) {
+			for ($x = $x1; $x <= $x2; ++$x) {
+				for ($z = $z1; $z <= $z2; ++$z) {
 					$builder->set($x, $y, $z, $this->randomStone($random));
 				}
 			}

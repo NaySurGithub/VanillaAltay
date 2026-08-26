@@ -9,6 +9,7 @@ use pocketmine\utils\Random;
 use pocketmine\world\BlockTransaction;
 use pocketmine\world\ChunkManager;
 use pocketmine\world\generator\object\Tree;
+
 use function abs;
 
 /**
@@ -18,20 +19,23 @@ use function abs;
  * A dark oak grows on a two by two trunk and spreads a wide, flat canopy that touches the ground level of the
  * forest, which is what makes those forests dark in the first place.
  */
-final class DarkOakTree extends Tree{
-
+final class DarkOakTree extends Tree
+{
 	private const MIN_HEIGHT = 6;
+
 	private const HEIGHT_RANDOM = 3;
 
-	public function __construct(){
+	public function __construct()
+	{
 		parent::__construct(VanillaBlocks::DARK_OAK_LOG(), VanillaBlocks::DARK_OAK_LEAVES(), self::MIN_HEIGHT);
 	}
 
-	public function canPlaceObject(ChunkManager $world, int $x, int $y, int $z, Random $random) : bool{
-		for($xx = 0; $xx <= 1; ++$xx){
-			for($zz = 0; $zz <= 1; ++$zz){
-				for($yy = 0; $yy < self::MIN_HEIGHT + self::HEIGHT_RANDOM + 3; ++$yy){
-					if(!$this->canOverride($world->getBlockAt($x + $xx, $y + $yy, $z + $zz))){
+	public function canPlaceObject(ChunkManager $world, int $x, int $y, int $z, Random $random) : bool
+	{
+		for ($xx = 0; $xx <= 1; ++$xx) {
+			for ($zz = 0; $zz <= 1; ++$zz) {
+				for ($yy = 0; $yy < self::MIN_HEIGHT + self::HEIGHT_RANDOM + 3; ++$yy) {
+					if (!$this->canOverride($world->getBlockAt($x + $xx, $y + $yy, $z + $zz))) {
 						return false;
 					}
 				}
@@ -41,16 +45,18 @@ final class DarkOakTree extends Tree{
 		return true;
 	}
 
-	protected function generateTrunkHeight(Random $random) : int{
+	protected function generateTrunkHeight(Random $random) : int
+	{
 		return self::MIN_HEIGHT + $random->nextBoundedInt(self::HEIGHT_RANDOM);
 	}
 
-	protected function placeTrunk(int $x, int $y, int $z, Random $random, int $trunkHeight, BlockTransaction $transaction) : void{
-		for($xx = 0; $xx <= 1; ++$xx){
-			for($zz = 0; $zz <= 1; ++$zz){
+	protected function placeTrunk(int $x, int $y, int $z, Random $random, int $trunkHeight, BlockTransaction $transaction) : void
+	{
+		for ($xx = 0; $xx <= 1; ++$xx) {
+			for ($zz = 0; $zz <= 1; ++$zz) {
 				$transaction->addBlockAt($x + $xx, $y - 1, $z + $zz, VanillaBlocks::DIRT());
 
-				for($yy = 0; $yy < $trunkHeight; ++$yy){
+				for ($yy = 0; $yy < $trunkHeight; ++$yy) {
 					$transaction->addBlockAt($x + $xx, $y + $yy, $z + $zz, $this->trunkBlock);
 				}
 			}
@@ -59,17 +65,19 @@ final class DarkOakTree extends Tree{
 		$this->placeDarkOakCanopy($x, $y + $trunkHeight, $z, $transaction);
 	}
 
-	protected function placeCanopy(int $x, int $y, int $z, Random $random, BlockTransaction $transaction) : void{
+	protected function placeCanopy(int $x, int $y, int $z, Random $random, BlockTransaction $transaction) : void
+	{
 		//the canopy is placed from placeTrunk instead, since its height depends on the randomized trunk
 	}
 
-	private function placeDarkOakCanopy(int $x, int $y, int $z, BlockTransaction $transaction) : void{
+	private function placeDarkOakCanopy(int $x, int $y, int $z, BlockTransaction $transaction) : void
+	{
 		//a wide slab of leaves, then a smaller cap on top
-		for($yy = -1; $yy <= 0; ++$yy){
+		for ($yy = -1; $yy <= 0; ++$yy) {
 			$radius = $yy === 0 ? 2 : 3;
-			for($xx = -$radius; $xx <= $radius + 1; ++$xx){
-				for($zz = -$radius; $zz <= $radius + 1; ++$zz){
-					if(abs($xx) === $radius + 1 && abs($zz) === $radius + 1){
+			for ($xx = -$radius; $xx <= $radius + 1; ++$xx) {
+				for ($zz = -$radius; $zz <= $radius + 1; ++$zz) {
+					if (abs($xx) === $radius + 1 && abs($zz) === $radius + 1) {
 						continue;
 					}
 					$this->addLeaf($transaction, $x + $xx, $y + $yy, $z + $zz);
@@ -77,15 +85,16 @@ final class DarkOakTree extends Tree{
 			}
 		}
 
-		for($xx = 0; $xx <= 1; ++$xx){
-			for($zz = 0; $zz <= 1; ++$zz){
+		for ($xx = 0; $xx <= 1; ++$xx) {
+			for ($zz = 0; $zz <= 1; ++$zz) {
 				$this->addLeaf($transaction, $x + $xx, $y + 1, $z + $zz);
 			}
 		}
 	}
 
-	private function addLeaf(BlockTransaction $transaction, int $x, int $y, int $z) : void{
-		if($this->canOverride($transaction->fetchBlockAt($x, $y, $z))){
+	private function addLeaf(BlockTransaction $transaction, int $x, int $y, int $z) : void
+	{
+		if ($this->canOverride($transaction->fetchBlockAt($x, $y, $z))) {
 			$transaction->addBlockAt($x, $y, $z, $this->leafBlock);
 		}
 	}

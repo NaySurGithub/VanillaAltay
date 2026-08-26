@@ -10,9 +10,10 @@ use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 use VanillaAltay\world\generator\structure\mineshaft\BoundingBox;
 
-final class PrisonHall extends StrongholdPiece{
-
-	public function __construct(int $genDepth, Random $random, BoundingBox $boundingBox, ?int $orientation){
+final class PrisonHall extends StrongholdPiece
+{
+	public function __construct(int $genDepth, Random $random, BoundingBox $boundingBox, ?int $orientation)
+	{
 		parent::__construct($genDepth);
 
 		$this->setOrientation($orientation);
@@ -23,17 +24,20 @@ final class PrisonHall extends StrongholdPiece{
 	/**
 	 * @param StrongholdPiece[] $pieces
 	 */
-	public static function createPiece(array $pieces, Random $random, int $x, int $y, int $z, ?int $orientation, int $genDepth) : ?self{
+	public static function createPiece(array $pieces, Random $random, int $x, int $y, int $z, ?int $orientation, int $genDepth) : ?self
+	{
 		$box = self::orientBox($x, $y, $z, -1, -1, 0, 9, 5, 11, $orientation);
 
 		return self::isOkBox($box) && self::findCollisionPiece($pieces, $box) === null ? new self($genDepth, $random, $box, $orientation) : null;
 	}
 
-	public function addChildren(PieceGenerator $generator, Random $random) : void{
+	public function addChildren(PieceGenerator $generator, Random $random) : void
+	{
 		$this->generateSmallDoorChildForward($generator, $random, 1, 1);
 	}
 
-	public function postProcess(ChunkManager $world, Random $random, BoundingBox $clip) : bool{
+	public function postProcess(ChunkManager $world, Random $random, BoundingBox $clip) : bool
+	{
 		$this->generateBoxSelector($world, $clip, $random, 0, 0, 0, 8, 4, 10);
 		$this->generateSmallDoor($world, $clip, $this->entryDoor, 1, 1, 0);
 
@@ -46,7 +50,7 @@ final class PrisonHall extends StrongholdPiece{
 		$this->generateBoxSelector($world, $clip, $random, 4, 1, 9, 4, 3, 9);
 
 		$bars = VanillaBlocks::IRON_BARS();
-		for($y = 1; $y <= 3; ++$y){
+		for ($y = 1; $y <= 3; ++$y) {
 			$this->placeBlock($world, $clip, $bars, 4, $y, 4);
 			$this->placeBlock($world, $clip, $bars, 4, $y, 5);
 			$this->placeBlock($world, $clip, $bars, 4, $y, 6);

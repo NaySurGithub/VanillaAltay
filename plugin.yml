@@ -1,6 +1,6 @@
 ---
 name: VanillaAltay
-version: 0.1.0
+version: 0.2.0
 main: VanillaAltay\Main
 api: 5.0.0
 load: STARTUP

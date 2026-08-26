@@ -10,8 +10,8 @@ use pocketmine\data\bedrock\BiomeIds;
  * One biome's share of the archive: its town centres, its street pieces, its houses and the caps that close a
  * street. The zombie variants, the villager markers and the animal markers are left out.
  */
-final class VillageVariant{
-
+final class VillageVariant
+{
 	/**
 	 * @param string[] $townCenters
 	 * @param string[] $streets
@@ -23,8 +23,8 @@ final class VillageVariant{
 		public readonly array $townCenters,
 		public readonly array $streets,
 		public readonly array $houses,
-		public readonly array $terminators
-	){}
+		public readonly array $terminators,
+	) {}
 
 	/**
 	 * @var self[]
@@ -32,25 +32,27 @@ final class VillageVariant{
 	 */
 	private static array $variants = [];
 
-	public static function forBiome(int $biomeId) : ?self{
-		$name = match($biomeId){
+	public static function forBiome(int $biomeId) : ?self
+	{
+		$name = match ($biomeId) {
 			BiomeIds::PLAINS, BiomeIds::SUNFLOWER_PLAINS, BiomeIds::MEADOW => "plains",
 			BiomeIds::DESERT => "desert",
 			BiomeIds::SAVANNA => "savanna",
 			BiomeIds::TAIGA => "taiga",
 			BiomeIds::ICE_PLAINS, BiomeIds::COLD_TAIGA => "snowy",
-			default => null
+			default => null,
 		};
 
-		if($name === null){
+		if ($name === null) {
 			return null;
 		}
 
 		return self::$variants[$name] ??= self::build($name);
 	}
 
-	private static function build(string $name) : self{
-		return match($name){
+	private static function build(string $name) : self
+	{
+		return match ($name) {
 			"plains" => new self(
 				"plains",
 				self::prefix("village/plains/town_centers/", ["plains_fountain_01", "plains_meeting_point_1", "plains_meeting_point_2", "plains_meeting_point_3"]),
@@ -63,9 +65,9 @@ final class VillageVariant{
 					"plains_shepherds_house_1", "plains_armorer_house_1", "plains_fisher_cottage_1", "plains_tannery_1",
 					"plains_cartographer_1", "plains_library_1", "plains_library_2", "plains_masons_house_1",
 					"plains_weaponsmith_1", "plains_temple_3", "plains_temple_4", "plains_stable_1", "plains_stable_2",
-					"plains_large_farm_1", "plains_small_farm_1", "plains_animal_pen_1", "plains_animal_pen_2", "plains_animal_pen_3"
+					"plains_large_farm_1", "plains_small_farm_1", "plains_animal_pen_1", "plains_animal_pen_2", "plains_animal_pen_3",
 				]),
-				self::prefix("village/plains/terminators/", ["terminator_01", "terminator_02", "terminator_03", "terminator_04"])
+				self::prefix("village/plains/terminators/", ["terminator_01", "terminator_02", "terminator_03", "terminator_04"]),
 			),
 			"desert" => new self(
 				"desert",
@@ -78,9 +80,9 @@ final class VillageVariant{
 					"desert_armorer_1", "desert_butcher_shop_1", "desert_cartographer_house_1", "desert_farm_1",
 					"desert_farm_2", "desert_fisher_1", "desert_fletcher_house_1", "desert_large_farm_1",
 					"desert_library_1", "desert_mason_1", "desert_shepherd_house_1", "desert_tannery_1",
-					"desert_temple_1", "desert_temple_2", "desert_tool_smith_1", "desert_weaponsmith_1"
+					"desert_temple_1", "desert_temple_2", "desert_tool_smith_1", "desert_weaponsmith_1",
 				]),
-				self::prefix("village/desert/terminators/", ["terminator_01", "terminator_02"])
+				self::prefix("village/desert/terminators/", ["terminator_01", "terminator_02"]),
 			),
 			"savanna" => new self(
 				"savanna",
@@ -94,9 +96,9 @@ final class VillageVariant{
 					"savanna_cartographer_1", "savanna_fisher_cottage_1", "savanna_fletcher_house_1",
 					"savanna_large_farm_1", "savanna_large_farm_2", "savanna_library_1", "savanna_mason_1",
 					"savanna_shepherd_1", "savanna_small_farm", "savanna_tannery_1", "savanna_temple_1",
-					"savanna_temple_2", "savanna_tool_smith_1", "savanna_weaponsmith_1", "savanna_weaponsmith_2"
+					"savanna_temple_2", "savanna_tool_smith_1", "savanna_weaponsmith_1", "savanna_weaponsmith_2",
 				]),
-				self::prefix("village/savanna/terminators/", ["terminator_05"])
+				self::prefix("village/savanna/terminators/", ["terminator_05"]),
 			),
 			"taiga" => new self(
 				"taiga",
@@ -109,9 +111,9 @@ final class VillageVariant{
 					"taiga_butcher_shop_1", "taiga_cartographer_house_1", "taiga_fisher_cottage_1",
 					"taiga_fletcher_house_1", "taiga_large_farm_1", "taiga_large_farm_2", "taiga_library_1",
 					"taiga_masons_house_1", "taiga_shepherds_house_1", "taiga_small_farm_1", "taiga_tannery_1",
-					"taiga_temple_1", "taiga_tool_smith_1", "taiga_weaponsmith_1", "taiga_weaponsmith_2"
+					"taiga_temple_1", "taiga_tool_smith_1", "taiga_weaponsmith_1", "taiga_weaponsmith_2",
 				]),
-				[]
+				[],
 			),
 			default => new self(
 				"snowy",
@@ -125,10 +127,10 @@ final class VillageVariant{
 					"snowy_butchers_shop_2", "snowy_cartographer_house_1", "snowy_farm_1", "snowy_farm_2",
 					"snowy_fisher_cottage", "snowy_fletcher_house_1", "snowy_library_1", "snowy_masons_house_1",
 					"snowy_masons_house_2", "snowy_shepherds_house_1", "snowy_tannery_1", "snowy_temple_1",
-					"snowy_tool_smith_1", "snowy_weapon_smith_1"
+					"snowy_tool_smith_1", "snowy_weapon_smith_1",
 				]),
-				[]
-			)
+				[],
+			),
 		};
 	}
 
@@ -136,9 +138,10 @@ final class VillageVariant{
 	 * @param string[] $names
 	 * @return string[]
 	 */
-	private static function prefix(string $prefix, array $names) : array{
+	private static function prefix(string $prefix, array $names) : array
+	{
 		$identifiers = [];
-		foreach($names as $name){
+		foreach ($names as $name) {
 			$identifiers[] = $prefix . $name;
 		}
 

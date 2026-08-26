@@ -9,6 +9,7 @@ use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 use VanillaAltay\world\generator\structure\jigsaw\JigsawAssembler;
 use VanillaAltay\world\generator\structure\mineshaft\BoundingBox;
+
 use function in_array;
 use function max;
 
@@ -16,8 +17,8 @@ use function max;
  * A buried village assembled from templates that name each other: a tower, the roads leaving it and the rooms
  * hanging off both.
  */
-final class TrailRuins implements Structure{
-
+final class TrailRuins implements Structure
+{
 	private const SALT = 83469867;
 
 	private const MAX_DEPTH = 16;
@@ -48,27 +49,28 @@ final class TrailRuins implements Structure{
 		BiomeIds::MEGA_TAIGA_HILLS,
 		BiomeIds::REDWOOD_TAIGA_MUTATED,
 		BiomeIds::REDWOOD_TAIGA_HILLS_MUTATED,
-		BiomeIds::JUNGLE
+		BiomeIds::JUNGLE,
 	];
 
 	/**
 	 * @phpstan-return array<string, list<array{string, int}>>
 	 */
-	private static function getPools() : array{
+	private static function getPools() : array
+	{
 		return [
 			self::ENTRY_POOL => [
 				["trail_ruins/tower/tower_1", 1],
 				["trail_ruins/tower/tower_2", 1],
 				["trail_ruins/tower/tower_3", 1],
 				["trail_ruins/tower/tower_4", 1],
-				["trail_ruins/tower/tower_5", 1]
+				["trail_ruins/tower/tower_5", 1],
 			],
 			"trail_ruins/tower/tower_top" => [
 				["trail_ruins/tower/tower_top_1", 1],
 				["trail_ruins/tower/tower_top_2", 1],
 				["trail_ruins/tower/tower_top_3", 1],
 				["trail_ruins/tower/tower_top_4", 1],
-				["trail_ruins/tower/tower_top_5", 1]
+				["trail_ruins/tower/tower_top_5", 1],
 			],
 			"trail_ruins/tower/additions" => [
 				["trail_ruins/tower/hall_1", 1],
@@ -95,7 +97,7 @@ final class TrailRuins implements Structure{
 				["trail_ruins/tower/stable_2", 1],
 				["trail_ruins/tower/stable_3", 1],
 				["trail_ruins/tower/stable_4", 1],
-				["trail_ruins/tower/stable_5", 1]
+				["trail_ruins/tower/stable_5", 1],
 			],
 			"trail_ruins/roads" => [
 				["trail_ruins/roads/long_road_end", 1],
@@ -104,7 +106,7 @@ final class TrailRuins implements Structure{
 				["trail_ruins/roads/road_section_2", 1],
 				["trail_ruins/roads/road_section_3", 1],
 				["trail_ruins/roads/road_section_4", 1],
-				["trail_ruins/roads/road_spacer_1", 1]
+				["trail_ruins/roads/road_spacer_1", 1],
 			],
 			"trail_ruins/buildings" => [
 				["trail_ruins/buildings/group_hall_1", 1],
@@ -121,7 +123,7 @@ final class TrailRuins implements Structure{
 				["trail_ruins/buildings/one_room_2", 1],
 				["trail_ruins/buildings/one_room_3", 1],
 				["trail_ruins/buildings/one_room_4", 1],
-				["trail_ruins/buildings/one_room_5", 1]
+				["trail_ruins/buildings/one_room_5", 1],
 			],
 			"trail_ruins/buildings/grouped" => [
 				["trail_ruins/buildings/group_full_1", 1],
@@ -143,7 +145,7 @@ final class TrailRuins implements Structure{
 				["trail_ruins/buildings/group_room_2", 1],
 				["trail_ruins/buildings/group_room_3", 1],
 				["trail_ruins/buildings/group_room_4", 1],
-				["trail_ruins/buildings/group_room_5", 1]
+				["trail_ruins/buildings/group_room_5", 1],
 			],
 			"trail_ruins/decor" => [
 				["trail_ruins/decor/decor_1", 1],
@@ -152,28 +154,35 @@ final class TrailRuins implements Structure{
 				["trail_ruins/decor/decor_4", 1],
 				["trail_ruins/decor/decor_5", 1],
 				["trail_ruins/decor/decor_6", 1],
-				["trail_ruins/decor/decor_7", 1]
-			]
+				["trail_ruins/decor/decor_7", 1],
+			],
 		];
 	}
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "trail_ruins";
 	}
 
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, 8, 34, fn(int $biomeId) => in_array($biomeId, self::BIOMES, true));
 	}
 
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$originY = max($world->getMinY() + 1, $y - self::DEPTH_BELOW_SURFACE);
 
 		$clip = new BoundingBox(
-			-self::BLOCK_REACH, $world->getMinY() - $originY, -self::BLOCK_REACH,
-			self::BLOCK_REACH, $world->getMaxY() - 1 - $originY, self::BLOCK_REACH
+			-self::BLOCK_REACH,
+			$world->getMinY() - $originY,
+			-self::BLOCK_REACH,
+			self::BLOCK_REACH,
+			$world->getMaxY() - 1 - $originY,
+			self::BLOCK_REACH,
 		);
 
-		foreach(JigsawAssembler::assemble(self::getPools(), self::ENTRY_POOL, self::MAX_DEPTH, self::MAX_PIECES, $random, $clip) as $piece){
+		foreach (JigsawAssembler::assemble(self::getPools(), self::ENTRY_POOL, self::MAX_DEPTH, self::MAX_PIECES, $random, $clip) as $piece) {
 			$piece->template->place($world, $x + $piece->x, $originY + $piece->y, $z + $piece->z, $piece->rotation);
 		}
 	}

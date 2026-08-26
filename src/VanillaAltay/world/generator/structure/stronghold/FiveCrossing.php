@@ -11,14 +11,18 @@ use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 use VanillaAltay\world\generator\structure\mineshaft\BoundingBox;
 
-final class FiveCrossing extends StrongholdPiece{
-
+final class FiveCrossing extends StrongholdPiece
+{
 	private bool $leftLow;
+
 	private bool $leftHigh;
+
 	private bool $rightLow;
+
 	private bool $rightHigh;
 
-	public function __construct(int $genDepth, Random $random, BoundingBox $boundingBox, ?int $orientation){
+	public function __construct(int $genDepth, Random $random, BoundingBox $boundingBox, ?int $orientation)
+	{
 		parent::__construct($genDepth);
 
 		$this->setOrientation($orientation);
@@ -33,52 +37,55 @@ final class FiveCrossing extends StrongholdPiece{
 	/**
 	 * @param StrongholdPiece[] $pieces
 	 */
-	public static function createPiece(array $pieces, Random $random, int $x, int $y, int $z, ?int $orientation, int $genDepth) : ?self{
+	public static function createPiece(array $pieces, Random $random, int $x, int $y, int $z, ?int $orientation, int $genDepth) : ?self
+	{
 		$box = self::orientBox($x, $y, $z, -4, -3, 0, 10, 9, 11, $orientation);
 
 		return self::isOkBox($box) && self::findCollisionPiece($pieces, $box) === null ? new self($genDepth, $random, $box, $orientation) : null;
 	}
 
-	public function addChildren(PieceGenerator $generator, Random $random) : void{
+	public function addChildren(PieceGenerator $generator, Random $random) : void
+	{
 		$lowX = 3;
 		$highX = 5;
 
-		if($this->orientation === Facing::WEST || $this->orientation === Facing::NORTH){
+		if ($this->orientation === Facing::WEST || $this->orientation === Facing::NORTH) {
 			$lowX = 8 - $lowX;
 			$highX = 8 - $highX;
 		}
 
 		$this->generateSmallDoorChildForward($generator, $random, 5, 1);
 
-		if($this->leftLow){
+		if ($this->leftLow) {
 			$this->generateSmallDoorChildLeft($generator, $random, $lowX, 1);
 		}
-		if($this->leftHigh){
+		if ($this->leftHigh) {
 			$this->generateSmallDoorChildLeft($generator, $random, $highX, 7);
 		}
-		if($this->rightLow){
+		if ($this->rightLow) {
 			$this->generateSmallDoorChildRight($generator, $random, $lowX, 1);
 		}
-		if($this->rightHigh){
+		if ($this->rightHigh) {
 			$this->generateSmallDoorChildRight($generator, $random, $highX, 7);
 		}
 	}
 
-	public function postProcess(ChunkManager $world, Random $random, BoundingBox $clip) : bool{
+	public function postProcess(ChunkManager $world, Random $random, BoundingBox $clip) : bool
+	{
 		$this->generateBoxSelector($world, $clip, $random, 0, 0, 0, 9, 8, 10);
 		$this->generateSmallDoor($world, $clip, $this->entryDoor, 4, 3, 0);
 
 		$air = VanillaBlocks::AIR();
-		if($this->leftLow){
+		if ($this->leftLow) {
 			$this->generateBox($world, $clip, 0, 3, 1, 0, 5, 3, $air, $air);
 		}
-		if($this->rightLow){
+		if ($this->rightLow) {
 			$this->generateBox($world, $clip, 9, 3, 1, 9, 5, 3, $air, $air);
 		}
-		if($this->leftHigh){
+		if ($this->leftHigh) {
 			$this->generateBox($world, $clip, 0, 5, 7, 0, 7, 9, $air, $air);
 		}
-		if($this->rightHigh){
+		if ($this->rightHigh) {
 			$this->generateBox($world, $clip, 9, 5, 7, 9, 7, 9, $air, $air);
 		}
 

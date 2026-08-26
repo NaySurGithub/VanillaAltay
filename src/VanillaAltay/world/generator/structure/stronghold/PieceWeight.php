@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace VanillaAltay\world\generator\structure\stronghold;
 
-final class PieceWeight{
-
+final class PieceWeight
+{
 	public int $placeCount = 0;
 
 	/**
@@ -15,14 +15,16 @@ final class PieceWeight{
 		public string $pieceClass,
 		public int $weight,
 		public int $maxPlaceCount,
-		public int $minGenDepth = 0
-	){}
+		public int $minGenDepth = 0,
+	) {}
 
-	public function doPlace(int $genDepth) : bool{
+	public function doPlace(int $genDepth) : bool
+	{
 		return $this->isValid() && $genDepth > $this->minGenDepth;
 	}
 
-	public function isValid() : bool{
+	public function isValid() : bool
+	{
 		return $this->maxPlaceCount === 0 || $this->placeCount < $this->maxPlaceCount;
 	}
 }

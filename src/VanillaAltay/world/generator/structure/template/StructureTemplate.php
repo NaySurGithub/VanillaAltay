@@ -12,6 +12,7 @@ use pocketmine\math\Axis;
 use pocketmine\math\Facing;
 use pocketmine\world\ChunkManager;
 use pocketmine\world\format\Chunk;
+
 use function ord;
 use function strlen;
 
@@ -19,11 +20,14 @@ use function strlen;
  * A block-by-block template: its size, a palette of block states and one byte per block indexing into it.
  * A byte of zero is a hole, which is left untouched when the template is stamped.
  */
-final class StructureTemplate{
-
+final class StructureTemplate
+{
 	public const ROTATION_NONE = 0;
+
 	public const ROTATION_90 = 1;
+
 	public const ROTATION_180 = 2;
+
 	public const ROTATION_270 = 3;
 
 	/**
@@ -52,31 +56,36 @@ final class StructureTemplate{
 		private int $sizeZ,
 		array $palette,
 		private string $blocks,
-		private array $jigsaws = []
-	){
+		private array $jigsaws = [],
+	) {
 		$this->palette = $palette;
 	}
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return $this->name;
 	}
 
 	/**
 	 * @return JigsawBlock[]
 	 */
-	public function getJigsaws() : array{
+	public function getJigsaws() : array
+	{
 		return $this->jigsaws;
 	}
 
-	public function getSizeX() : int{
+	public function getSizeX() : int
+	{
 		return $this->sizeX;
 	}
 
-	public function getSizeY() : int{
+	public function getSizeY() : int
+	{
 		return $this->sizeY;
 	}
 
-	public function getSizeZ() : int{
+	public function getSizeZ() : int
+	{
 		return $this->sizeZ;
 	}
 
@@ -87,7 +96,8 @@ final class StructureTemplate{
 	 * @return int[]
 	 * @phpstan-return array{int, int}
 	 */
-	public function getRotatedSize(int $rotation) : array{
+	public function getRotatedSize(int $rotation) : array
+	{
 		return $rotation === self::ROTATION_90 || $rotation === self::ROTATION_270
 			? [$this->sizeZ, $this->sizeX]
 			: [$this->sizeX, $this->sizeZ];
@@ -96,9 +106,10 @@ final class StructureTemplate{
 	/**
 	 * Returns the state id at the given local position, or null where the template has a hole.
 	 */
-	public function getStateIdAt(int $x, int $y, int $z) : ?int{
+	public function getStateIdAt(int $x, int $y, int $z) : ?int
+	{
 		$index = $x + ($this->sizeX * ($y + ($this->sizeY * $z)));
-		if($index < 0 || $index >= strlen($this->blocks)){
+		if ($index < 0 || $index >= strlen($this->blocks)) {
 			return null;
 		}
 
@@ -111,14 +122,15 @@ final class StructureTemplate{
 	 * Writes the template into the world, skipping holes and anything falling in a chunk that is not loaded.
 	 * The origin stays the corner the template grew from, whatever the rotation.
 	 */
-	public function place(ChunkManager $world, int $originX, int $originY, int $originZ, int $rotation = self::ROTATION_NONE) : int{
+	public function place(ChunkManager $world, int $originX, int $originY, int $originZ, int $rotation = self::ROTATION_NONE) : int
+	{
 		$placed = 0;
 
-		for($x = 0; $x < $this->sizeX; ++$x){
-			for($y = 0; $y < $this->sizeY; ++$y){
-				for($z = 0; $z < $this->sizeZ; ++$z){
+		for ($x = 0; $x < $this->sizeX; ++$x) {
+			for ($y = 0; $y < $this->sizeY; ++$y) {
+				for ($z = 0; $z < $this->sizeZ; ++$z) {
 					$stateId = $this->getStateIdAt($x, $y, $z);
-					if($stateId === null){
+					if ($stateId === null) {
 						continue;
 					}
 
@@ -128,12 +140,12 @@ final class StructureTemplate{
 					$worldY = $originY + $y;
 					$worldZ = $originZ + $offsetZ;
 
-					if(!$world->isInWorld($worldX, $worldY, $worldZ)){
+					if (!$world->isInWorld($worldX, $worldY, $worldZ)) {
 						continue;
 					}
 
 					$chunk = $world->getChunk($worldX >> Chunk::COORD_BIT_SIZE, $worldZ >> Chunk::COORD_BIT_SIZE);
-					if($chunk === null){
+					if ($chunk === null) {
 						continue;
 					}
 
@@ -150,12 +162,13 @@ final class StructureTemplate{
 	 * @return int[]
 	 * @phpstan-return array{int, int}
 	 */
-	public function rotateOffset(int $x, int $z, int $rotation) : array{
-		return match($rotation){
+	public function rotateOffset(int $x, int $z, int $rotation) : array
+	{
+		return match ($rotation) {
 			self::ROTATION_90 => [$this->sizeZ - 1 - $z, $x],
 			self::ROTATION_180 => [$this->sizeX - 1 - $x, $this->sizeZ - 1 - $z],
 			self::ROTATION_270 => [$z, $this->sizeX - 1 - $x],
-			default => [$x, $z]
+			default => [$x, $z],
 		};
 	}
 
@@ -163,46 +176,50 @@ final class StructureTemplate{
 	 * Turning a structure also turns the blocks that face somewhere: stairs, doors, chests and the rest keep
 	 * their orientation relative to the building rather than to the world.
 	 */
-	private function rotateState(int $stateId, int $rotation) : int{
-		if($rotation === self::ROTATION_NONE){
+	private function rotateState(int $stateId, int $rotation) : int
+	{
+		if ($rotation === self::ROTATION_NONE) {
 			return $stateId;
 		}
 
-		if(isset($this->rotated[$stateId][$rotation])){
+		if (isset($this->rotated[$stateId][$rotation])) {
 			return $this->rotated[$stateId][$rotation];
 		}
 
 		$block = RuntimeBlockStateRegistry::getInstance()->fromStateId($stateId);
 
-		$result = match(true){
+		$result = match (true) {
 			$block instanceof AnyFacing, $block instanceof HorizontalFacing => self::turnFacing($block, $rotation),
 			$block instanceof MultiAnyFacing => self::turnFaces($block, $rotation),
-			default => $stateId
+			default => $stateId,
 		};
 
 		return $this->rotated[$stateId][$rotation] = $result;
 	}
 
-	private static function turnFacing(AnyFacing|HorizontalFacing $block, int $rotation) : int{
+	private static function turnFacing(AnyFacing|HorizontalFacing $block, int $rotation) : int
+	{
 		$facing = $block->getFacing();
-		if(Facing::axis($facing) === Axis::Y){
+		if (Facing::axis($facing) === Axis::Y) {
 			return $block->getStateId();
 		}
 
 		return (clone $block)->setFacing(self::turn($facing, $rotation))->getStateId();
 	}
 
-	private static function turnFaces(MultiAnyFacing $block, int $rotation) : int{
+	private static function turnFaces(MultiAnyFacing $block, int $rotation) : int
+	{
 		$faces = [];
-		foreach($block->getFaces() as $face){
+		foreach ($block->getFaces() as $face) {
 			$faces[] = Facing::axis($face) === Axis::Y ? $face : self::turn($face, $rotation);
 		}
 
 		return (clone $block)->setFaces($faces)->getStateId();
 	}
 
-	private static function turn(int $facing, int $rotation) : int{
-		for($i = 0; $i < $rotation; ++$i){
+	private static function turn(int $facing, int $rotation) : int
+	{
+		for ($i = 0; $i < $rotation; ++$i) {
 			$facing = Facing::rotateY($facing, true);
 		}
 

@@ -7,8 +7,8 @@ namespace VanillaAltay\world\generator\structure;
 use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 
-interface Structure{
-
+interface Structure
+{
 	public function getName() : string;
 
 	public function getPlacement() : StructurePlacement;

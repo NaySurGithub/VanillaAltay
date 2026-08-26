@@ -9,6 +9,7 @@ use pocketmine\world\ChunkManager;
 use VanillaAltay\world\generator\structure\jigsaw\JigsawAssembler;
 use VanillaAltay\world\generator\structure\jigsaw\JigsawPiece;
 use VanillaAltay\world\generator\structure\mineshaft\BoundingBox;
+
 use function array_key_first;
 use function count;
 
@@ -16,8 +17,8 @@ use function count;
  * The city is assembled from templates that name each other, so its shape is only known once it is built. It is
  * far wider than a chunk, which is why every chunk it reaches rebuilds the same layout and writes its own part.
  */
-final class AncientCity implements SpreadStructure{
-
+final class AncientCity implements SpreadStructure
+{
 	private const SALT = 0x616E6369656E744C;
 
 	private const GENERATION_Y = -51;
@@ -44,12 +45,13 @@ final class AncientCity implements SpreadStructure{
 	/**
 	 * @phpstan-return array<string, list<array{string, int}>>
 	 */
-	private static function getPools() : array{
+	private static function getPools() : array
+	{
 		return [
 			self::ENTRY_POOL => [
 				["ancient_city/city_center/city_center_1", 1],
 				["ancient_city/city_center/city_center_2", 1],
-				["ancient_city/city_center/city_center_3", 1]
+				["ancient_city/city_center/city_center_3", 1],
 			],
 			"ancient_city/city/entrance" => [
 				["ancient_city/city/entrance/entrance_connector", 1],
@@ -57,7 +59,7 @@ final class AncientCity implements SpreadStructure{
 				["ancient_city/city/entrance/entrance_path_2", 1],
 				["ancient_city/city/entrance/entrance_path_3", 1],
 				["ancient_city/city/entrance/entrance_path_4", 1],
-				["ancient_city/city/entrance/entrance_path_5", 1]
+				["ancient_city/city/entrance/entrance_path_5", 1],
 			],
 			"ancient_city/structures" => [
 				["empty", 7],
@@ -81,10 +83,10 @@ final class AncientCity implements SpreadStructure{
 				["ancient_city/structures/small_ruin_2", 1],
 				["ancient_city/structures/large_pillar_1", 1],
 				["ancient_city/structures/medium_pillar_1", 1],
-				["ancient_city/structures/ice_box_1", 1]
+				["ancient_city/structures/ice_box_1", 1],
 			],
 			"ancient_city/sculk" => [
-				["empty", 7]
+				["empty", 7],
 			],
 			"ancient_city/walls" => [
 				["ancient_city/walls/intact_corner_wall_1", 1],
@@ -102,7 +104,7 @@ final class AncientCity implements SpreadStructure{
 				["ancient_city/walls/ruined_horizontal_wall_stairs_1", 2],
 				["ancient_city/walls/ruined_horizontal_wall_stairs_2", 2],
 				["ancient_city/walls/ruined_horizontal_wall_stairs_3", 3],
-				["ancient_city/walls/ruined_horizontal_wall_stairs_4", 3]
+				["ancient_city/walls/ruined_horizontal_wall_stairs_4", 3],
 			],
 			"ancient_city/walls/no_corners" => [
 				["ancient_city/walls/intact_horizontal_wall_1", 1],
@@ -112,7 +114,7 @@ final class AncientCity implements SpreadStructure{
 				["ancient_city/walls/intact_horizontal_wall_stairs_3", 1],
 				["ancient_city/walls/intact_horizontal_wall_stairs_4", 1],
 				["ancient_city/walls/intact_horizontal_wall_stairs_5", 1],
-				["ancient_city/walls/intact_horizontal_wall_bridge", 1]
+				["ancient_city/walls/intact_horizontal_wall_bridge", 1],
 			],
 			"ancient_city/city_center/walls" => [
 				["ancient_city/city_center/walls/bottom_1", 1],
@@ -124,40 +126,49 @@ final class AncientCity implements SpreadStructure{
 				["ancient_city/city_center/walls/right", 1],
 				["ancient_city/city_center/walls/top", 1],
 				["ancient_city/city_center/walls/top_left_corner", 1],
-				["ancient_city/city_center/walls/top_right_corner", 1]
-			]
+				["ancient_city/city_center/walls/top_right_corner", 1],
+			],
 		];
 	}
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "ancient_city";
 	}
 
 	/**
 	 * Altay knows no deep dark biome, so the only rule left is the spacing one.
 	 */
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, 8, 24, fn(int $biomeId) => true);
 	}
 
-	public function getChunkReach() : int{
+	public function getChunkReach() : int
+	{
 		return self::CHUNK_REACH;
 	}
 
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$this->placeAround($world, $random, $x >> 4, $z >> 4, $x >> 4, $z >> 4);
 	}
 
-	public function placeAround(ChunkManager $world, Random $random, int $originChunkX, int $originChunkZ, int $targetChunkX, int $targetChunkZ) : void{
+	public function placeAround(ChunkManager $world, Random $random, int $originChunkX, int $originChunkZ, int $targetChunkX, int $targetChunkZ) : void
+	{
 		$pieces = $this->getLayout($random, $random->getSeed(), $originChunkX, $originChunkZ);
 
 		$clip = new BoundingBox(
-			($targetChunkX - 1) << 4, $world->getMinY(), ($targetChunkZ - 1) << 4,
-			(($targetChunkX + 2) << 4) - 1, $world->getMaxY() - 1, (($targetChunkZ + 2) << 4) - 1
+			($targetChunkX - 1) << 4,
+			$world->getMinY(),
+			($targetChunkZ - 1) << 4,
+			(($targetChunkX + 2) << 4) - 1,
+			$world->getMaxY() - 1,
+			(($targetChunkZ + 2) << 4) - 1,
 		);
 
-		foreach($pieces as $piece){
-			if(!$piece->boundingBox->intersects($clip)){
+		foreach ($pieces as $piece) {
+			if (!$piece->boundingBox->intersects($clip)) {
 				continue;
 			}
 
@@ -171,8 +182,9 @@ final class AncientCity implements SpreadStructure{
 	 *
 	 * @return JigsawPiece[]
 	 */
-	private function getLayout(Random $random, int $layoutSeed, int $chunkX, int $chunkZ) : array{
-		if(isset($this->layouts[$layoutSeed])){
+	private function getLayout(Random $random, int $layoutSeed, int $chunkX, int $chunkZ) : array
+	{
+		if (isset($this->layouts[$layoutSeed])) {
 			return $this->layouts[$layoutSeed];
 		}
 
@@ -181,7 +193,7 @@ final class AncientCity implements SpreadStructure{
 		$originX = $chunkX << 4;
 		$originZ = $chunkZ << 4;
 
-		foreach($pieces as $piece){
+		foreach ($pieces as $piece) {
 			$piece->x += $originX;
 			$piece->y += self::GENERATION_Y;
 			$piece->z += $originZ;
@@ -189,7 +201,7 @@ final class AncientCity implements SpreadStructure{
 		}
 
 		//the keys are seeds, so the oldest one is dropped by name rather than shifted, which would renumber them
-		if(count($this->layouts) >= self::LAYOUT_CACHE_SIZE){
+		if (count($this->layouts) >= self::LAYOUT_CACHE_SIZE) {
 			unset($this->layouts[array_key_first($this->layouts)]);
 		}
 

@@ -10,11 +10,12 @@ use pocketmine\world\ChunkManager;
 use VanillaAltay\world\generator\populator\SurfacePopulator;
 use VanillaAltay\world\generator\structure\template\StructureTemplate;
 use VanillaAltay\world\generator\structure\template\TemplateArchive;
+
 use function count;
 use function in_array;
 
-final class PillagerOutpost implements Structure{
-
+final class PillagerOutpost implements Structure
+{
 	private const SALT = 165745296;
 
 	private const BIOMES = [
@@ -31,7 +32,7 @@ final class PillagerOutpost implements Structure{
 		BiomeIds::JAGGED_PEAKS,
 		BiomeIds::FROZEN_PEAKS,
 		BiomeIds::STONY_PEAKS,
-		BiomeIds::CHERRY_GROVE
+		BiomeIds::CHERRY_GROVE,
 	];
 
 	private const FEATURES = [
@@ -41,34 +42,37 @@ final class PillagerOutpost implements Structure{
 		"pillager_outpost/feature_logs",
 		"pillager_outpost/feature_tent1",
 		"pillager_outpost/feature_tent2",
-		"pillager_outpost/feature_targets"
+		"pillager_outpost/feature_targets",
 	];
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "pillager_outpost";
 	}
 
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, 8, 32, fn(int $biomeId) => in_array($biomeId, self::BIOMES, true));
 	}
 
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$archive = TemplateArchive::getInstance();
 
 		$tower = $archive->get($random->nextBoundedInt(4) === 0 ? "pillager_outpost/watchtower_overgrown" : "pillager_outpost/watchtower");
-		if($tower === null){
+		if ($tower === null) {
 			return;
 		}
 
 		$tower->place($world, $x, $y + 1, $z, $random->nextBoundedInt(4));
 
-		foreach([[-1, -1], [-1, 1], [1, -1], [1, 1]] as [$signX, $signZ]){
-			if(!$random->nextBoolean()){
+		foreach ([[-1, -1], [-1, 1], [1, -1], [1, 1]] as [$signX, $signZ]) {
+			if (!$random->nextBoolean()) {
 				continue;
 			}
 
 			$feature = $archive->get(self::FEATURES[$random->nextBoundedInt(count(self::FEATURES))]);
-			if($feature === null){
+			if ($feature === null) {
 				continue;
 			}
 
@@ -79,7 +83,7 @@ final class PillagerOutpost implements Structure{
 			$featureZ = $z + ($signZ * (16 - $random->nextBoundedInt(16 - $spanZ)));
 
 			$featureY = SurfacePopulator::getHighestWorkableBlock($world, $featureX, $featureZ);
-			if($featureY === -1){
+			if ($featureY === -1) {
 				continue;
 			}
 
@@ -91,7 +95,8 @@ final class PillagerOutpost implements Structure{
 	 * @return int[]
 	 * @phpstan-return array{int, int}
 	 */
-	private static function rotatedSpan(StructureTemplate $template, int $rotation) : array{
+	private static function rotatedSpan(StructureTemplate $template, int $rotation) : array
+	{
 		return $rotation === StructureTemplate::ROTATION_90 || $rotation === StructureTemplate::ROTATION_270
 			? [$template->getSizeZ(), $template->getSizeX()]
 			: [$template->getSizeX(), $template->getSizeZ()];

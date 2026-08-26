@@ -8,8 +8,8 @@ namespace VanillaAltay\world\generator\structure\template;
  * One connection point of a template: where it sits, which way it points, what it expects on the other side and
  * which pool the piece answering it is drawn from.
  */
-final class JigsawBlock{
-
+final class JigsawBlock
+{
 	public function __construct(
 		public int $x,
 		public int $y,
@@ -19,6 +19,6 @@ final class JigsawBlock{
 		public string $pool,
 		public bool $rollable,
 		public int $facing,
-		public int $top
-	){}
+		public int $top,
+	) {}
 }

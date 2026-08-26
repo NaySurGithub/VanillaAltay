@@ -10,11 +10,12 @@ use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 use pocketmine\world\format\Chunk;
 use VanillaAltay\world\generator\structure\template\TemplateArchive;
+
 use function count;
 use function in_array;
 
-final class Shipwreck implements Structure{
-
+final class Shipwreck implements Structure
+{
 	private const SALT = 165745295;
 
 	private const BEACH_BIOMES = [BiomeIds::BEACH, BiomeIds::COLD_BEACH, BiomeIds::STONE_BEACH, BiomeIds::MUSHROOM_ISLAND_SHORE];
@@ -34,7 +35,7 @@ final class Shipwreck implements Structure{
 		"shipwreck/with_mast_degraded",
 		"shipwreck/rightsideup_full_degraded",
 		"shipwreck/rightsideup_fronthalf_degraded",
-		"shipwreck/rightsideup_backhalf_degraded"
+		"shipwreck/rightsideup_backhalf_degraded",
 	];
 
 	private const SUNKEN = [
@@ -57,23 +58,26 @@ final class Shipwreck implements Structure{
 		"shipwreck/sideways_backhalf_degraded",
 		"shipwreck/rightsideup_full_degraded",
 		"shipwreck/rightsideup_fronthalf_degraded",
-		"shipwreck/rightsideup_backhalf_degraded"
+		"shipwreck/rightsideup_backhalf_degraded",
 	];
 
-	public function getName() : string{
+	public function getName() : string
+	{
 		return "shipwreck";
 	}
 
-	public function getPlacement() : StructurePlacement{
+	public function getPlacement() : StructurePlacement
+	{
 		return new StructurePlacement(self::SALT, 4, 24, fn(int $biomeId) => in_array($biomeId, self::BEACH_BIOMES, true) || in_array($biomeId, self::OCEAN_BIOMES, true));
 	}
 
-	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void{
+	public function place(ChunkManager $world, Random $random, int $x, int $y, int $z) : void
+	{
 		$beached = in_array($this->getBiomeId($world, $x, $z), self::BEACH_BIOMES, true);
 		$variants = $beached ? self::BEACHED : self::SUNKEN;
 
 		$template = TemplateArchive::getInstance()->get($variants[$random->nextBoundedInt(count($variants))]);
-		if($template === null){
+		if ($template === null) {
 			return;
 		}
 
@@ -82,7 +86,8 @@ final class Shipwreck implements Structure{
 		$template->place($world, $x, $this->getFloorY($world, $x, $y, $z), $z, $rotation);
 	}
 
-	private function getBiomeId(ChunkManager $world, int $x, int $z) : int{
+	private function getBiomeId(ChunkManager $world, int $x, int $z) : int
+	{
 		$chunk = $world->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
 
 		return $chunk?->getBiomeId($x & Chunk::COORD_MASK, 0, $z & Chunk::COORD_MASK) ?? BiomeIds::OCEAN;
@@ -91,10 +96,11 @@ final class Shipwreck implements Structure{
 	/**
 	 * The surface handed over is the top of the water in an ocean, so the hull is dropped down to the sea bed.
 	 */
-	private function getFloorY(ChunkManager $world, int $x, int $y, int $z) : int{
-		for(; $y > $world->getMinY(); --$y){
+	private function getFloorY(ChunkManager $world, int $x, int $y, int $z) : int
+	{
+		for (; $y > $world->getMinY(); --$y) {
 			$typeId = $world->getBlockAt($x, $y, $z)->getTypeId();
-			if($typeId !== BlockTypeIds::WATER && $typeId !== BlockTypeIds::AIR){
+			if ($typeId !== BlockTypeIds::WATER && $typeId !== BlockTypeIds::AIR) {
 				break;
 			}
 		}

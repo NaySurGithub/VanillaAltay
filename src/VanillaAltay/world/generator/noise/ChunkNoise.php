@@ -9,8 +9,8 @@ namespace VanillaAltay\world\generator\noise;
  *
  * @phpstan-type NoiseGrid \SplFixedArray<\SplFixedArray<float>>
  */
-final class ChunkNoise{
-
+final class ChunkNoise
+{
 	/**
 	 * @phpstan-param NoiseGrid $continentalness
 	 * @phpstan-param NoiseGrid $erosion
@@ -23,30 +23,36 @@ final class ChunkNoise{
 		private \SplFixedArray $erosion,
 		private \SplFixedArray $peaksValleys,
 		private \SplFixedArray $temperature,
-		private \SplFixedArray $humidity
-	){}
+		private \SplFixedArray $humidity,
+	) {}
 
-	public function getContinentalness(int $x, int $z) : float{
+	public function getContinentalness(int $x, int $z) : float
+	{
 		return $this->continentalness[$x][$z];
 	}
 
-	public function getErosion(int $x, int $z) : float{
+	public function getErosion(int $x, int $z) : float
+	{
 		return $this->erosion[$x][$z];
 	}
 
-	public function getPeaksValleys(int $x, int $z) : float{
+	public function getPeaksValleys(int $x, int $z) : float
+	{
 		return $this->peaksValleys[$x][$z];
 	}
 
-	public function getTemperature(int $x, int $z) : float{
+	public function getTemperature(int $x, int $z) : float
+	{
 		return $this->temperature[$x][$z];
 	}
 
-	public function getHumidity(int $x, int $z) : float{
+	public function getHumidity(int $x, int $z) : float
+	{
 		return $this->humidity[$x][$z];
 	}
 
-	public function getTerrainHeight(int $x, int $z) : int{
+	public function getTerrainHeight(int $x, int $z) : int
+	{
 		return NoiseRouter::terrainHeightFrom($this->getContinentalness($x, $z), $this->getErosion($x, $z), $this->getPeaksValleys($x, $z));
 	}
 }

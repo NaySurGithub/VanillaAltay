@@ -11,6 +11,7 @@ use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\world\format\io\GlobalBlockStateHandlers;
+
 use function count;
 use function ksort;
 use function ord;
@@ -23,32 +24,36 @@ use function strlen;
  * server to serialize every state it knows and hashing the result, so it needs no data file and follows
  * whatever version of the game the server speaks.
  */
-final class BlockStateHashes{
-
+final class BlockStateHashes
+{
 	/**
 	 * @var int[]|null
 	 * @phpstan-var array<int, int>|null
 	 */
 	private static ?array $stateIds = null;
 
-	private function __construct(){
+	private function __construct()
+	{
 		//NOOP
 	}
 
-	public static function toStateId(int $hash) : ?int{
+	public static function toStateId(int $hash) : ?int
+	{
 		self::load();
 
 		return self::$stateIds[$hash] ?? null;
 	}
 
-	public static function count() : int{
+	public static function count() : int
+	{
 		self::load();
 
 		return count(self::$stateIds);
 	}
 
-	private static function load() : void{
-		if(self::$stateIds !== null){
+	private static function load() : void
+	{
+		if (self::$stateIds !== null) {
 			return;
 		}
 
@@ -57,23 +62,23 @@ final class BlockStateHashes{
 		$serializer = new LittleEndianNbtSerializer();
 		$blockSerializer = GlobalBlockStateHandlers::getSerializer();
 
-		foreach(RuntimeBlockStateRegistry::getInstance()->getAllKnownStates() as $stateId => $block){
-			try{
+		foreach (RuntimeBlockStateRegistry::getInstance()->getAllKnownStates() as $stateId => $block) {
+			try {
 				$data = $blockSerializer->serializeBlock($block);
-			}catch(BlockStateSerializeException){
+			} catch (BlockStateSerializeException) {
 				continue;
 			}
 
 			//the hash covers the raw bytes, so the keys have to be written in the same order the game uses,
 			//which is alphabetical; only the name and the states are hashed, not the version tag in between
 			$pairs = [];
-			foreach($data->getStates() as $key => $value){
+			foreach ($data->getStates() as $key => $value) {
 				$pairs[$key] = $value;
 			}
 			ksort($pairs);
 
 			$states = CompoundTag::create();
-			foreach($pairs as $key => $value){
+			foreach ($pairs as $key => $value) {
 				$states->setTag($key, $value);
 			}
 
@@ -85,9 +90,10 @@ final class BlockStateHashes{
 		}
 	}
 
-	private static function fnv1a32(string $data) : int{
+	private static function fnv1a32(string $data) : int
+	{
 		$hash = 0x811c9dc5;
-		for($i = 0, $length = strlen($data); $i < $length; ++$i){
+		for ($i = 0, $length = strlen($data); $i < $length; ++$i) {
 			$hash ^= ord($data[$i]);
 			$hash = ($hash * 0x01000193) & 0xffffffff;
 		}

@@ -27,16 +27,19 @@ use VanillaAltay\world\generator\populator\TreePopulator;
  * Altay only ships thirteen biomes and most of them decorate with little more than grass and trees, so the
  * plugin replaces them all rather than registering the missing ones and leaving the rest half empty.
  */
-final class VanillaBiomes{
-
+final class VanillaBiomes
+{
 	private const GRASS_COVER = [BlockTypeIds::GRASS, BlockTypeIds::DIRT];
+
 	private const SAND_COVER = [BlockTypeIds::SAND, BlockTypeIds::RED_SAND];
 
-	private function __construct(){
+	private function __construct()
+	{
 		//NOOP
 	}
 
-	public static function register() : void{
+	public static function register() : void
+	{
 		$registry = BiomeRegistry::getInstance();
 
 		$registry->register(BiomeIds::OCEAN, self::ocean("Ocean", 46, 58));
@@ -64,33 +67,36 @@ final class VanillaBiomes{
 		$registry->register(BiomeIds::EXTREME_HILLS, self::extremeHills());
 	}
 
-	private static function ocean(string $name, int $minElevation, int $maxElevation, float $temperature = 0.5) : Biome{
+	private static function ocean(string $name, int $minElevation, int $maxElevation, float $temperature = 0.5) : Biome
+	{
 		$biome = self::make($name, [
 			VanillaBlocks::GRAVEL(),
 			VanillaBlocks::GRAVEL(),
 			VanillaBlocks::GRAVEL(),
 			VanillaBlocks::GRAVEL(),
-			VanillaBlocks::GRAVEL()
+			VanillaBlocks::GRAVEL(),
 		], $temperature, 0.5, $minElevation, $maxElevation);
 		$biome->addPopulator(self::grass(2));
 
 		return $biome;
 	}
 
-	private static function beach(string $name, float $temperature, float $rainfall) : Biome{
+	private static function beach(string $name, float $temperature, float $rainfall) : Biome
+	{
 		$biome = self::make($name, [
 			VanillaBlocks::SAND(),
 			VanillaBlocks::SAND(),
 			VanillaBlocks::SANDSTONE(),
 			VanillaBlocks::SANDSTONE(),
-			VanillaBlocks::SANDSTONE()
+			VanillaBlocks::SANDSTONE(),
 		], $temperature, $rainfall, 60, 66);
 		$biome->addPopulator(self::sugarCane(2));
 
 		return $biome;
 	}
 
-	private static function plains() : Biome{
+	private static function plains() : Biome
+	{
 		$biome = self::grassy("Plains", 0.8, 0.4);
 		$biome->addPopulator(self::trees([TreeType::OAK], 0, 2));
 		$biome->addPopulator(self::grass(12));
@@ -99,7 +105,7 @@ final class VanillaBiomes{
 			VanillaBlocks::POPPY(),
 			VanillaBlocks::AZURE_BLUET(),
 			VanillaBlocks::CORNFLOWER(),
-			VanillaBlocks::OXEYE_DAISY()
+			VanillaBlocks::OXEYE_DAISY(),
 		]));
 		$biome->addPopulator(self::sugarCane(1));
 		$biome->addPopulator(self::pumpkins());
@@ -111,14 +117,15 @@ final class VanillaBiomes{
 	/**
 	 * @param TreeType[] $trees
 	 */
-	private static function forest(string $name, array $trees, int $amount, float $temperature = 0.7, float $rainfall = 0.8) : Biome{
+	private static function forest(string $name, array $trees, int $amount, float $temperature = 0.7, float $rainfall = 0.8) : Biome
+	{
 		$biome = self::grassy($name, $temperature, $rainfall);
 		$biome->addPopulator(self::trees($trees, $amount, 2));
 		$biome->addPopulator(self::grass(4));
 		$biome->addPopulator(new Flower([
 			VanillaBlocks::DANDELION(),
 			VanillaBlocks::POPPY(),
-			VanillaBlocks::LILY_OF_THE_VALLEY()
+			VanillaBlocks::LILY_OF_THE_VALLEY(),
 		]));
 		$biome->addPopulator(self::mushrooms());
 		$biome->addPopulator(self::waterLake());
@@ -126,7 +133,8 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function roofedForest() : Biome{
+	private static function roofedForest() : Biome
+	{
 		$biome = self::grassy("Roofed Forest", 0.7, 0.8);
 		$biome->addPopulator(self::darkOaks(10, 3));
 		$biome->addPopulator(self::trees([TreeType::OAK, TreeType::BIRCH], 1, 2));
@@ -136,7 +144,8 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function taiga(string $name, int $trees) : Biome{
+	private static function taiga(string $name, int $trees) : Biome
+	{
 		$biome = self::grassy($name, 0.3, 0.8);
 		$biome->addPopulator(self::trees([TreeType::SPRUCE], $trees, 2));
 		$biome->addPopulator(self::grass(2));
@@ -146,7 +155,8 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function swamp() : Biome{
+	private static function swamp() : Biome
+	{
 		$biome = self::grassy("Swampland", 0.8, 0.9);
 		$biome->addPopulator(self::trees([TreeType::OAK], 2, 1));
 		$biome->addPopulator(self::grass(6));
@@ -157,7 +167,8 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function jungle() : Biome{
+	private static function jungle() : Biome
+	{
 		$biome = self::grassy("Jungle", 0.95, 0.9);
 		$biome->addPopulator(self::trees([TreeType::JUNGLE, TreeType::JUNGLE, TreeType::JUNGLE, TreeType::OAK], 14, 4));
 		$biome->addPopulator(self::grass(16));
@@ -167,7 +178,8 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function savanna() : Biome{
+	private static function savanna() : Biome
+	{
 		$biome = self::grassy("Savanna", 1.2, 0.0);
 		$biome->addPopulator(self::trees([TreeType::ACACIA], 1, 1));
 		$biome->addPopulator(self::grass(16));
@@ -176,13 +188,14 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function desert() : Biome{
+	private static function desert() : Biome
+	{
 		$biome = self::make("Desert", [
 			VanillaBlocks::SAND(),
 			VanillaBlocks::SAND(),
 			VanillaBlocks::SANDSTONE(),
 			VanillaBlocks::SANDSTONE(),
-			VanillaBlocks::SANDSTONE()
+			VanillaBlocks::SANDSTONE(),
 		], 2.0, 0.0, 63, 74);
 		$biome->addPopulator(self::cactus(3));
 		$biome->addPopulator(self::deadBushes(2));
@@ -191,13 +204,14 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function mesa() : Biome{
+	private static function mesa() : Biome
+	{
 		$biome = self::make("Mesa", [
 			VanillaBlocks::RED_SAND(),
 			VanillaBlocks::RED_SAND(),
 			VanillaBlocks::STAINED_CLAY(),
 			VanillaBlocks::STAINED_CLAY(),
-			VanillaBlocks::STAINED_CLAY()
+			VanillaBlocks::STAINED_CLAY(),
 		], 2.0, 0.0, 63, 90);
 		$biome->addPopulator(self::cactus(1));
 		$biome->addPopulator(self::deadBushes(4));
@@ -205,7 +219,8 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function icePlains() : Biome{
+	private static function icePlains() : Biome
+	{
 		$biome = self::grassy("Ice Plains", 0.0, 0.5);
 		$biome->addPopulator(self::trees([TreeType::SPRUCE], 0, 1));
 		$biome->addPopulator(self::grass(2));
@@ -213,20 +228,22 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function iceMountains() : Biome{
+	private static function iceMountains() : Biome
+	{
 		$biome = self::make("Ice Mountains", [
 			VanillaBlocks::SNOW(),
 			VanillaBlocks::DIRT(),
 			VanillaBlocks::DIRT(),
 			VanillaBlocks::DIRT(),
-			VanillaBlocks::DIRT()
+			VanillaBlocks::DIRT(),
 		], 0.0, 0.5, 63, 128);
 		$biome->addPopulator(self::trees([TreeType::SPRUCE], 0, 1));
 
 		return $biome;
 	}
 
-	private static function extremeHills() : Biome{
+	private static function extremeHills() : Biome
+	{
 		$biome = self::grassy("Mountains", 0.2, 0.3);
 		$biome->addPopulator(self::trees([TreeType::SPRUCE, TreeType::OAK], 1, 1));
 		$biome->addPopulator(self::grass(4));
@@ -235,20 +252,22 @@ final class VanillaBiomes{
 		return $biome;
 	}
 
-	private static function grassy(string $name, float $temperature, float $rainfall) : SimpleBiome{
+	private static function grassy(string $name, float $temperature, float $rainfall) : SimpleBiome
+	{
 		return self::make($name, [
 			VanillaBlocks::GRASS(),
 			VanillaBlocks::DIRT(),
 			VanillaBlocks::DIRT(),
 			VanillaBlocks::DIRT(),
-			VanillaBlocks::DIRT()
+			VanillaBlocks::DIRT(),
 		], $temperature, $rainfall, 63, 81);
 	}
 
 	/**
 	 * @param Block[] $groundCover
 	 */
-	private static function make(string $name, array $groundCover, float $temperature, float $rainfall, int $minElevation, int $maxElevation) : SimpleBiome{
+	private static function make(string $name, array $groundCover, float $temperature, float $rainfall, int $minElevation, int $maxElevation) : SimpleBiome
+	{
 		$biome = new SimpleBiome($name, $groundCover, $temperature, $rainfall);
 		$biome->setElevation($minElevation, $maxElevation);
 
@@ -258,7 +277,8 @@ final class VanillaBiomes{
 	/**
 	 * @param TreeType[] $types one entry per slot of the roll, so repeating a type makes it more likely
 	 */
-	private static function trees(array $types, int $base, int $random = 1) : TreePopulator{
+	private static function trees(array $types, int $base, int $random = 1) : TreePopulator
+	{
 		$trees = TreePopulator::ofTypes($types);
 		$trees->setBaseAmount($base);
 		$trees->setRandomAmount($random);
@@ -266,7 +286,8 @@ final class VanillaBiomes{
 		return $trees;
 	}
 
-	private static function darkOaks(int $base, int $random) : TreePopulator{
+	private static function darkOaks(int $base, int $random) : TreePopulator
+	{
 		$trees = new TreePopulator(fn(Random $treeRandom) => new DarkOakTree());
 		$trees->setBaseAmount($base);
 		$trees->setRandomAmount($random);
@@ -274,14 +295,16 @@ final class VanillaBiomes{
 		return $trees;
 	}
 
-	private static function grass(int $amount) : TallGrass{
+	private static function grass(int $amount) : TallGrass
+	{
 		$grass = new TallGrass();
 		$grass->setBaseAmount($amount);
 
 		return $grass;
 	}
 
-	private static function sugarCane(int $amount) : SugarCane{
+	private static function sugarCane(int $amount) : SugarCane
+	{
 		$cane = new SugarCane();
 		$cane->setBaseAmount($amount);
 		$cane->setRandomAmount(2);
@@ -289,7 +312,8 @@ final class VanillaBiomes{
 		return $cane;
 	}
 
-	private static function cactus(int $amount) : Cactus{
+	private static function cactus(int $amount) : Cactus
+	{
 		$cactus = new Cactus();
 		$cactus->setBaseAmount($amount);
 		$cactus->setRandomAmount(2);
@@ -297,14 +321,16 @@ final class VanillaBiomes{
 		return $cactus;
 	}
 
-	private static function deadBushes(int $amount) : GroundPlant{
+	private static function deadBushes(int $amount) : GroundPlant
+	{
 		$bushes = new GroundPlant(VanillaBlocks::DEAD_BUSH(), self::SAND_COVER);
 		$bushes->setBaseAmount($amount);
 
 		return $bushes;
 	}
 
-	private static function pumpkins() : GroundPlant{
+	private static function pumpkins() : GroundPlant
+	{
 		$pumpkins = new GroundPlant(VanillaBlocks::PUMPKIN(), self::GRASS_COVER);
 		$pumpkins->setBaseAmount(1);
 		$pumpkins->setRandomAmount(1);
@@ -313,7 +339,8 @@ final class VanillaBiomes{
 		return $pumpkins;
 	}
 
-	private static function mushrooms() : GroundPlant{
+	private static function mushrooms() : GroundPlant
+	{
 		$mushrooms = new GroundPlant(VanillaBlocks::BROWN_MUSHROOM(), self::GRASS_COVER);
 		$mushrooms->setBaseAmount(1);
 		$mushrooms->setRandomAmount(2);
@@ -322,7 +349,8 @@ final class VanillaBiomes{
 		return $mushrooms;
 	}
 
-	private static function waterLake() : Lake{
+	private static function waterLake() : Lake
+	{
 		return new Lake(VanillaBlocks::WATER(), 4);
 	}
 }

@@ -10,13 +10,14 @@ use pocketmine\utils\Random;
 use pocketmine\world\ChunkManager;
 use VanillaAltay\world\generator\structure\mineshaft\BoundingBox;
 
-class StairsDown extends StrongholdPiece{
-
+class StairsDown extends StrongholdPiece
+{
 	private const HORIZONTAL = [Facing::NORTH, Facing::EAST, Facing::SOUTH, Facing::WEST];
 
 	protected bool $isSource = false;
 
-	public function __construct(int $genDepth, Random $random, BoundingBox $boundingBox, ?int $orientation){
+	public function __construct(int $genDepth, Random $random, BoundingBox $boundingBox, ?int $orientation)
+	{
 		parent::__construct($genDepth);
 
 		$this->setOrientation($orientation);
@@ -24,7 +25,8 @@ class StairsDown extends StrongholdPiece{
 		$this->boundingBox = $boundingBox;
 	}
 
-	public static function createSource(Random $random, int $x, int $z) : static{
+	public static function createSource(Random $random, int $x, int $z) : static
+	{
 		$piece = new static(0, $random, new BoundingBox($x, 64, $z, $x + 4, 74, $z + 4), null);
 		$piece->isSource = true;
 		$piece->setOrientation(self::HORIZONTAL[$random->nextBoundedInt(4)]);
@@ -36,21 +38,24 @@ class StairsDown extends StrongholdPiece{
 	/**
 	 * @param StrongholdPiece[] $pieces
 	 */
-	public static function createPiece(array $pieces, Random $random, int $x, int $y, int $z, ?int $orientation, int $genDepth) : ?self{
+	public static function createPiece(array $pieces, Random $random, int $x, int $y, int $z, ?int $orientation, int $genDepth) : ?self
+	{
 		$box = self::orientBox($x, $y, $z, -1, -7, 0, 5, 11, 5, $orientation);
 
 		return self::isOkBox($box) && self::findCollisionPiece($pieces, $box) === null ? new self($genDepth, $random, $box, $orientation) : null;
 	}
 
-	public function addChildren(PieceGenerator $generator, Random $random) : void{
-		if($this->isSource){
+	public function addChildren(PieceGenerator $generator, Random $random) : void
+	{
+		if ($this->isSource) {
 			$generator->impose(FiveCrossing::class);
 		}
 
 		$this->generateSmallDoorChildForward($generator, $random, 1, 1);
 	}
 
-	public function postProcess(ChunkManager $world, Random $random, BoundingBox $clip) : bool{
+	public function postProcess(ChunkManager $world, Random $random, BoundingBox $clip) : bool
+	{
 		$this->generateBoxSelector($world, $clip, $random, 0, 0, 0, 4, 10, 4);
 		$this->generateSmallDoor($world, $clip, $this->entryDoor, 1, 7, 0);
 		$this->generateSmallDoor($world, $clip, self::DOOR_OPENING, 1, 1, 4);
