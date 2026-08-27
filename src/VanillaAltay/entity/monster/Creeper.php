@@ -8,17 +8,29 @@ use pocketmine\entity\EntitySizeInfo;
 use pocketmine\event\entity\EntityPreExplodeEvent;
 use pocketmine\item\VanillaItems;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\world\Explosion;
 use pocketmine\world\Position;
 use VanillaAltay\entity\ai\goal\CreeperSwellGoal;
 use VanillaAltay\entity\ai\goal\NearestPlayerTargetGoal;
 use VanillaAltay\entity\ai\goal\RandomStrollGoal;
 use VanillaAltay\entity\ai\GoalSelector;
+use VanillaAltay\world\sound\CreeperFuseSound;
 
+use function max;
+use function min;
 use function mt_rand;
 
 final class Creeper extends Monster
 {
+	private const FUSE_TICKS = 30;
+
+	private int $swellTicks = 0;
+
+	private int $previousSwellTicks = 0;
+
 	public static function getNetworkTypeId() : string
 	{
 		return EntityIds::CREEPER;
@@ -54,6 +66,45 @@ final class Creeper extends Monster
 	public function getXpDropAmount() : int
 	{
 		return 5;
+	}
+
+	protected function syncNetworkData(EntityMetadataCollection $properties) : void
+	{
+		parent::syncNetworkData($properties);
+
+		$properties->setInt(EntityMetadataProperties::CREEPER_SWELL, $this->swellTicks);
+		$properties->setInt(EntityMetadataProperties::CREEPER_SWELL_PREVIOUS, $this->previousSwellTicks);
+		$properties->setByte(EntityMetadataProperties::CREEPER_SWELL_DIRECTION, $this->swellTicks > 0 ? 1 : -1);
+		$properties->setInt(EntityMetadataProperties::FUSE_LENGTH, self::FUSE_TICKS);
+	}
+
+	public function startSwelling() : void
+	{
+		$this->swellTicks = 0;
+		$this->previousSwellTicks = 0;
+		$this->getNetworkProperties()->setGenericFlag(EntityMetadataFlags::IGNITED, true);
+		$this->getNetworkProperties()->setByte(EntityMetadataProperties::CREEPER_SWELL_DIRECTION, 1);
+		$this->getNetworkProperties()->setInt(EntityMetadataProperties::FUSE_LENGTH, self::FUSE_TICKS);
+		$this->broadcastSound(new CreeperFuseSound());
+	}
+
+	public function setSwellTicks(int $ticks) : void
+	{
+		$this->previousSwellTicks = $this->swellTicks;
+		$this->swellTicks = min(self::FUSE_TICKS, max(0, $ticks));
+
+		$this->getNetworkProperties()->setInt(EntityMetadataProperties::CREEPER_SWELL_PREVIOUS, $this->previousSwellTicks);
+		$this->getNetworkProperties()->setInt(EntityMetadataProperties::CREEPER_SWELL, $this->swellTicks);
+	}
+
+	public function stopSwelling() : void
+	{
+		$this->swellTicks = 0;
+		$this->previousSwellTicks = 0;
+		$this->getNetworkProperties()->setGenericFlag(EntityMetadataFlags::IGNITED, false);
+		$this->getNetworkProperties()->setInt(EntityMetadataProperties::CREEPER_SWELL, 0);
+		$this->getNetworkProperties()->setInt(EntityMetadataProperties::CREEPER_SWELL_PREVIOUS, 0);
+		$this->getNetworkProperties()->setByte(EntityMetadataProperties::CREEPER_SWELL_DIRECTION, -1);
 	}
 
 	public function explode() : void

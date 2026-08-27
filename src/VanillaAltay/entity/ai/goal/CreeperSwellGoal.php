@@ -14,17 +14,24 @@ final class CreeperSwellGoal implements Goal
 
 	public function canStart(IntelligentMob $mob) : bool
 	{
-		return $mob instanceof Creeper && $mob->hasLivingTarget();
+		return $mob instanceof Creeper &&
+			($target = $mob->getTarget()) !== null &&
+			$mob->getPosition()->distanceSquared($target->getPosition()) <= 9;
 	}
 
 	public function shouldContinue(IntelligentMob $mob) : bool
 	{
-		return $mob instanceof Creeper && $mob->hasLivingTarget();
+		return $mob instanceof Creeper &&
+			($target = $mob->getTarget()) !== null &&
+			$mob->getPosition()->distanceSquared($target->getPosition()) < 49;
 	}
 
 	public function start(IntelligentMob $mob) : void
 	{
 		$this->fuse = 30;
+		if ($mob instanceof Creeper) {
+			$mob->startSwelling();
+		}
 	}
 
 	public function tick(IntelligentMob $mob, int $tickDiff) : void
@@ -32,17 +39,10 @@ final class CreeperSwellGoal implements Goal
 		if (!$mob instanceof Creeper || ($target = $mob->getTarget()) === null) {
 			return;
 		}
-		$distance = $mob->getPosition()->distanceSquared($target->getPosition());
 		$mob->lookAtEntity($target);
-		if ($distance > 9) {
-			if ($distance > 49) {
-				$this->fuse = 30;
-			}
-			$mob->walkToward($target->getPosition(), 0.2);
-			return;
-		}
 		$mob->stopHorizontalMovement();
 		$this->fuse -= $tickDiff;
+		$mob->setSwellTicks(30 - $this->fuse);
 		if ($this->fuse <= 0) {
 			$mob->explode();
 		}
@@ -51,6 +51,9 @@ final class CreeperSwellGoal implements Goal
 	public function stop(IntelligentMob $mob) : void
 	{
 		$this->fuse = 30;
+		if ($mob instanceof Creeper && !$mob->isFlaggedForDespawn()) {
+			$mob->stopSwelling();
+		}
 		$mob->stopHorizontalMovement();
 	}
 }
