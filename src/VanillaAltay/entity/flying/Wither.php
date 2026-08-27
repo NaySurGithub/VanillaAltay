@@ -7,10 +7,10 @@ namespace VanillaAltay\entity\flying;
 use pocketmine\entity\EntitySizeInfo;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\item\VanillaItems;
-use pocketmine\math\Position;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\world\Explosion;
+use pocketmine\world\Position;
 use VanillaAltay\entity\ai\goal\NearestPlayerTargetGoal;
 use VanillaAltay\entity\ai\goal\ProjectileAttackGoal;
 use VanillaAltay\entity\ai\goal\RandomFlyGoal;
@@ -47,7 +47,9 @@ final class Wither extends BossFlyingMob
 	{
 		if ($this->invulnerabilityTicks > 0 && $source->getCause() !== EntityDamageEvent::CAUSE_VOID) {
 			return;
-		}parent::attack($source);
+		}
+
+		parent::attack($source);
 	}
 
 	protected function entityBaseTick(int $tickDiff = 1) : bool
@@ -63,7 +65,9 @@ final class Wither extends BossFlyingMob
 			}
 		} elseif ($this->ticksLived % 20 === 0 && $this->getHealth() < $this->getMaxHealth()) {
 			$this->setHealth($this->getHealth() + 1);
-		}return parent::entityBaseTick($tickDiff);
+		}
+
+		return parent::entityBaseTick($tickDiff);
 	}
 
 	public static function getNetworkTypeId() : string

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace VanillaAltay\entity\projectile;
 
 use pocketmine\event\entity\ProjectileHitEvent;
-use pocketmine\math\Position;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\world\Explosion;
+use pocketmine\world\Position;
 
 final class Fireball extends MagicProjectile
 {
