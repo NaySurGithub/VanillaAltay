@@ -61,7 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete main \
+          gh release delete latest \
             --repo "${{ github.repository }}" \
             --cleanup-tag \
             --yes || true
@@ -70,7 +70,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create main \
+          gh release create latest \
             "Vanilla-Altay-${{ steps.version.outputs.version }}.phar" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
