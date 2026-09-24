@@ -1,75 +1,65 @@
-# Vanilla-Altay
+<div align="center">
 
-An Altay plugin that brings missing vanilla mechanics to your server, one module at a time.
+# 🌍 Vanilla-Altay
 
-## Modules
+**The vanilla Minecraft: Bedrock Edition features your Altay server is missing.**
 
-### Redstone
+[![Release](https://img.shields.io/github/v/release/NaySurGithub/VanillaAltay?style=for-the-badge&color=8b5cf6)](https://github.com/NaySurGithub/VanillaAltay/releases/latest)
+[![Altay](https://img.shields.io/badge/Altay-5.44-10b981?style=for-the-badge)](https://github.com/altayofficial/Altay)
+[![PHP](https://img.shields.io/badge/PHP-8.2-777bb4?style=for-the-badge&logo=php&logoColor=white)](https://www.php.net)
+[![License](https://img.shields.io/badge/license-GPL--3.0-f59e0b?style=for-the-badge)](LICENSE)
 
-| Category | Blocks |
+</div>
+
+---
+
+## 🔴 Redstone
+
+Build real contraptions, from a simple door to a flying machine.
+
+- **Wiring** · dust, torches, repeaters, comparators reading containers
+- **Sources** · levers, buttons, pressure plates, observers, trapped chests
+- **Pistons** · push and pull whole slime structures, launch entities
+- **Machines** · dispensers, droppers, hoppers that lock when powered
+- **Openables** · doors, trapdoors and fence gates, iron ones redstone only
+
+## 🔥 Dimensions
+
+The Nether and the End, generated like vanilla and reachable through portals.
+
+- **The Nether** · all five biomes, bastion remnants, fortresses, ruined portals and fossils
+- **The End** · the main island and its obsidian spikes with their crystals, outer islands, gateways, chorus forests and end cities
+- **Portals** · light a nether portal anywhere in its frame, fill the twelve frames with eyes of ender to open the End
+- **Dimension rules** · beds and respawn anchors explode where they should, water evaporates in the Nether, lava runs faster there
+
+## 📦 Behavior packs
+
+Drop any behavior pack in the `behavior_packs` folder next to `resource_packs` and it just works.
+
+- **Custom items and blocks** · components, states, permutations, placement
+- **Custom entities** · components, component groups, events and simple AI
+- **Recipes and loot tables** · crafting, smelting, brewing, block and mob drops
+- **Scripts** · `@minecraft/server` and `@minecraft/server-ui`, run by a JavaScript engine written in pure PHP, nothing to install
+
+## 🚀 Installation
+
+1. Download the latest `.phar` from the [releases](https://github.com/NaySurGithub/VanillaAltay/releases/latest).
+2. Drop it in the `plugins` folder of your server, with [Customies](https://github.com/altayofficial/Customies) for custom content.
+3. Start the server. Every module can be turned off in `plugin_data/Vanilla-Altay/config.yml`.
+
+## 🧩 For developers
+
+| Event | When |
 |---|---|
-| Wiring | Redstone dust, redstone torch, repeater, comparator (reads container contents) |
-| Power sources | Lever, buttons, pressure plates (wooden, stone, weighted), block of redstone, observer, trapped chest |
-| Powered blocks | Redstone lamp, doors (including copper), trapdoors (wooden, iron, copper), fence gates, TNT, redstone ore |
-| Hopper | Transfers items between containers, picks up dropped items, locked while powered |
-| Pistons | Piston, sticky piston, slime block structures, with push and pull events for other plugins |
-| Dispenser | Armor, buckets, projectiles, spawn eggs, plain drops |
-| Dropper | Inserts into the container it faces, drops the item otherwise |
+| `redstone\event\PistonPushBlockEvent` | A piston is about to push blocks |
+| `redstone\event\PistonPullBlockEvent` | A sticky piston is about to pull blocks |
 
-### Behavior packs
+Both can be cancelled.
 
-Drop behavior packs in the `behavior_packs/` folder of the server, next to `resource_packs/`. Extracted packs, `.mcpack`, `.mcaddon` and `.zip` archives are all accepted.
-
-| Content | Loaded |
-|---|---|
-| `items/` | Custom items |
-| `blocks/` | Custom blocks, with states and permutations |
-| `entities/` | Custom entities: components, component groups, events, basic AI, spawn eggs |
-| `recipes/` | Shaped, shapeless, furnace, blast furnace, smoker, campfire and brewing recipes |
-| `loot_tables/` | Block and entity drops |
-| `scripts/` | `@minecraft/server` and `@minecraft/server-ui` scripts |
-
-The matching resource packs go in `resource_packs/` as usual.
-
-## Requirements
-
-- Altay 5.44 or newer
-- PHP 8.2 or newer
-- [Customies](https://github.com/altayofficial/Customies) for custom items, blocks and entities
-
-## Installation
-
-Download the latest `.phar` from the releases and drop it in the `plugins/` folder of your server.
-
-To run from source, place this folder in `plugins/` with DevTools installed.
-
-## Configuration
-
-`plugin_data/Vanilla-Altay/config.yml`
-
-| Key | Default | Effect |
-|---|---|---|
-| `redstone.enabled` | `true` | Redstone module |
-| `behavior-packs.enabled` | `true` | Behavior packs module |
-| `behavior-packs.folder` | `behavior_packs` | Packs folder, relative to the server folder |
-| `behavior-packs.items-and-blocks` | `true` | Custom items and blocks |
-| `behavior-packs.entities` | `true` | Custom entities |
-| `behavior-packs.recipes` | `true` | Recipes |
-| `behavior-packs.loot-tables` | `true` | Loot tables |
-| `behavior-packs.scripts` | `true` | Scripts |
-| `behavior-packs.script-timeout-ms` | `2000` | Time a script may run before its pack is disabled |
-
-## Events
-
-| Event | Fired when |
-|---|---|
-| `redstone\event\PistonPushBlockEvent` | A piston is about to push blocks. Cancellable. |
-| `redstone\event\PistonPullBlockEvent` | A sticky piston is about to pull blocks. Cancellable. |
-
-## Credits
+## ❤️ Credits
 
 The redstone module is based on [Cosmoverse/Redstone](https://github.com/Cosmoverse/Redstone) by Muqsit.
 
-## License
+## 📄 License
 
 Vanilla-Altay is licensed under the [GNU General Public License v3.0](LICENSE).
