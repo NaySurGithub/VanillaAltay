@@ -1,0 +1,78 @@
+name: 🧱 Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: 🚀 Build & Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔎 Read plugin version
+        id: version
+        run: echo "version=$(grep '^version:' plugin.yml | cut -d: -f2 | tr -d ' \r\"')" >> "$GITHUB_OUTPUT"
+
+      - name: 🕵️ Check if release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release v${{ steps.version.outputs.version }} already exists, nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Release v${{ steps.version.outputs.version }} does not exist yet, building it."
+          fi
+
+      - name: 🔨 Build phar
+        if: steps.check.outputs.exists == 'false'
+        env:
+          PHAR_FILE: Vanilla-Altay-${{ steps.version.outputs.version }}.phar
+        run: |
+          php -d phar.readonly=0 <<'PHP'
+          <?php
+          $output = getenv("PHAR_FILE");
+          @unlink($output);
+          $phar = new Phar($output);
+          $phar->startBuffering();
+          $phar->setSignatureAlgorithm(Phar::SHA1);
+          foreach(["plugin.yml", "LICENSE", "README.md"] as $file){
+              if(is_file($file)){
+                  $phar->addFile($file, $file);
+              }
+          }
+          foreach(["src", "resources"] as $directory){
+              if(!is_dir($directory)){
+                  continue;
+              }
+              $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS));
+              foreach($files as $file){
+                  $path = str_replace("\\", "/", $file->getPathname());
+                  $phar->addFile($path, $path);
+              }
+          }
+          $phar->setStub("<?php __HALT_COMPILER();");
+          $phar->compressFiles(Phar::GZ);
+          $phar->stopBuffering();
+          echo "Built $output with " . count($phar) . " files\n";
+          PHP
+
+      - name: 🎉 Create release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            "Vanilla-Altay-${{ steps.version.outputs.version }}.phar" \
+            --repo "${{ github.repository }}" \
+            --title "Vanilla-Altay v${{ steps.version.outputs.version }}" \
+            --generate-notes

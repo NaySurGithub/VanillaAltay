@@ -1,0 +1,12 @@
+redstone:
+  enabled: true
+
+behavior-packs:
+  enabled: true
+  folder: behavior_packs
+  items-and-blocks: true
+  entities: true
+  recipes: true
+  loot-tables: true
+  scripts: true
+  script-timeout-ms: 2000
