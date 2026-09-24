@@ -18,7 +18,8 @@ jobs:
 
       - name: 🔎 Read plugin version
         id: version
-        run: echo "version=$(grep '^version:' plugin.yml | cut -d: -f2 | tr -d ' \r\"')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(grep '^version:' plugin.yml | cut -d: -f2 | tr -d ' \r\"')" >> "$GITHUB_OUTPUT"
 
       - name: 🕵️ Check if release already exists
         id: check
