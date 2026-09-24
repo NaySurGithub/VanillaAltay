@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     name: 🚀 Build & Release
@@ -21,21 +25,7 @@ jobs:
         run: |
           echo "version=$(grep '^version:' plugin.yml | cut -d: -f2 | tr -d ' \r\"')" >> "$GITHUB_OUTPUT"
 
-      - name: 🕵️ Check if release already exists
-        id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view "v${{ steps.version.outputs.version }}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Release v${{ steps.version.outputs.version }} already exists, nothing to do."
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Release v${{ steps.version.outputs.version }} does not exist yet, building it."
-          fi
-
       - name: 🔨 Build phar
-        if: steps.check.outputs.exists == 'false'
         env:
           PHAR_FILE: Vanilla-Altay-${{ steps.version.outputs.version }}.phar
         run: |
@@ -67,13 +57,22 @@ jobs:
           echo "Built $output with " . count($phar) . " files\n";
           PHP
 
+      - name: 🧹 Remove previous release of this version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete "v${{ steps.version.outputs.version }}" \
+            --repo "${{ github.repository }}" \
+            --cleanup-tag \
+            --yes || true
+
       - name: 🎉 Create release
-        if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "v${{ steps.version.outputs.version }}" \
             "Vanilla-Altay-${{ steps.version.outputs.version }}.phar" \
             --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
             --title "Vanilla-Altay v${{ steps.version.outputs.version }}" \
             --generate-notes
