@@ -57,11 +57,11 @@ jobs:
           echo "Built $output with " . count($phar) . " files\n";
           PHP
 
-      - name: 🧹 Remove previous release of this version
+      - name: 🧹 Remove previous release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete "v${{ steps.version.outputs.version }}" \
+          gh release delete main \
             --repo "${{ github.repository }}" \
             --cleanup-tag \
             --yes || true
@@ -70,9 +70,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" \
+          gh release create main \
             "Vanilla-Altay-${{ steps.version.outputs.version }}.phar" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "Vanilla-Altay v${{ steps.version.outputs.version }}" \
-            --generate-notes
+            --generate-notes \
+            --latest
