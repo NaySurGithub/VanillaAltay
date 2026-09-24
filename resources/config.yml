@@ -1,6 +1,15 @@
 redstone:
   enabled: true
 
+dimensions:
+  enabled: true
+  nether:
+    enabled: true
+    world: world_nether
+  end:
+    enabled: true
+    world: world_the_end
+
 behavior-packs:
   enabled: true
   folder: behavior_packs

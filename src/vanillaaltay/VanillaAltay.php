@@ -6,6 +6,8 @@ namespace vanillaaltay;
 
 use behaviorpack\BehaviorPackModule;
 use behaviorpack\BehaviorPackSettings;
+use dimension\DimensionModule;
+use dimension\DimensionSettings;
 use pocketmine\plugin\PluginBase;
 use redstone\RedstoneModule;
 use function is_array;
@@ -13,6 +15,7 @@ use function is_array;
 final class VanillaAltay extends PluginBase{
 
 	private ?RedstoneModule $redstone = null;
+	private ?DimensionModule $dimensions = null;
 	private ?BehaviorPackModule $behaviorPacks = null;
 
 	protected function onLoad() : void{
@@ -25,6 +28,13 @@ final class VanillaAltay extends PluginBase{
 			$this->redstone->load();
 		}
 
+		$dimensions = $config->get("dimensions");
+		$dimensionSettings = DimensionSettings::fromConfig(is_array($dimensions) ? $dimensions : []);
+		if($dimensionSettings->enabled){
+			$this->dimensions = new DimensionModule($this, $dimensionSettings);
+			$this->dimensions->load();
+		}
+
 		$section = $config->get("behavior-packs");
 		$settings = BehaviorPackSettings::fromConfig(is_array($section) ? $section : []);
 		if($settings->enabled){
@@ -34,6 +44,7 @@ final class VanillaAltay extends PluginBase{
 
 	protected function onEnable() : void{
 		$this->redstone?->enable();
+		$this->dimensions?->enable();
 		$this->behaviorPacks?->enable();
 	}
 
