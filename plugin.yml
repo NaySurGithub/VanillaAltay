@@ -1,5 +1,5 @@
 name: Vanilla-Altay
 main: vanillaaltay\VanillaAltay
-version: 0.1.0
+version: 0.2.0
 api: 5.44.3
 load: STARTUP
