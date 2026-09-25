@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace dimension;
 
+use dimension\generator\end\EndCrystalSpawner;
 use dimension\generator\GeneratorOptions;
 use dimension\generator\VanillaGenerators;
 use dimension\network\DimensionNetworkListener;

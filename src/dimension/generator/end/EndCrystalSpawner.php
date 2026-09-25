@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace dimension;
+namespace dimension\generator\end;
 
+use dimension\Dimensions;
 use dimension\generator\end\populator\ObsidianPillarPopulator;
 use pocketmine\entity\Location;
 use pocketmine\entity\object\EndCrystal;
