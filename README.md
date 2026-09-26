@@ -41,6 +41,14 @@ Drop any behavior pack in the `behavior_packs` folder next to `resource_packs` a
 - **Recipes and loot tables** · crafting, smelting, brewing, block and mob drops
 - **Scripts** · `@minecraft/server` and `@minecraft/server-ui`, run by a JavaScript engine written in pure PHP, nothing to install
 
+## 🧱 Dummies
+
+Every vanilla block and item nothing else implements, read from the server's own data.
+
+- **Blocks** · every state kept, vanilla hardness, tools, light and flammability
+- **Items** · held, stored and saved like any other item
+- **Creative inventory** · each one in its vanilla place and group
+
 ## 🚀 Installation
 
 1. Download the latest `.phar` from the [releases](https://github.com/NaySurGithub/VanillaAltay/releases/latest).

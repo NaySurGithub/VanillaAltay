@@ -8,6 +8,7 @@ use behaviorpack\BehaviorPackModule;
 use behaviorpack\BehaviorPackSettings;
 use dimension\DimensionModule;
 use dimension\DimensionSettings;
+use dummy\DummyModule;
 use pocketmine\plugin\PluginBase;
 use redstone\RedstoneModule;
 use function is_array;
@@ -17,6 +18,7 @@ final class VanillaAltay extends PluginBase{
 	private ?RedstoneModule $redstone = null;
 	private ?DimensionModule $dimensions = null;
 	private ?BehaviorPackModule $behaviorPacks = null;
+	private ?DummyModule $dummies = null;
 
 	protected function onLoad() : void{
 		$this->saveDefaultConfig();
@@ -40,12 +42,18 @@ final class VanillaAltay extends PluginBase{
 		if($settings->enabled){
 			$this->behaviorPacks = new BehaviorPackModule($this, $settings);
 		}
+
+		$dummies = $config->get("dummies");
+		if(!is_array($dummies) || ($dummies["enabled"] ?? true) === true){
+			$this->dummies = new DummyModule($this);
+		}
 	}
 
 	protected function onEnable() : void{
 		$this->redstone?->enable();
 		$this->dimensions?->enable();
 		$this->behaviorPacks?->enable();
+		$this->dummies?->enable();
 	}
 
 	protected function onDisable() : void{

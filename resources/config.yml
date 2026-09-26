@@ -19,3 +19,6 @@ behavior-packs:
   loot-tables: true
   scripts: true
   script-timeout-ms: 2000
+
+dummies:
+  enabled: true
