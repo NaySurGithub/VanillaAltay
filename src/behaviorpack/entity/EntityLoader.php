@@ -7,11 +7,16 @@ namespace behaviorpack\entity;
 use behaviorpack\BehaviorPack;
 use behaviorpack\BehaviorPackException;
 use behaviorpack\ContentLoader;
+use behaviorpack\entity\player\PlayerBehaviorManager;
+use behaviorpack\entity\player\PlayerDefinition;
 use customiesdevs\customies\entity\CustomiesEntityFactory;
 use customiesdevs\customies\item\CreativeInventoryInfo;
 use customiesdevs\customies\item\CustomiesItemFactory;
 use pocketmine\entity\EntityFactory;
+use pocketmine\event\EventPriority;
+use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\item\ItemIdentifier;
+use pocketmine\network\mcpe\protocol\StartGamePacket;
 use pocketmine\item\ItemTypeIds;
 use pocketmine\plugin\PluginBase;
 use Throwable;
@@ -73,6 +78,56 @@ final class EntityLoader implements ContentLoader{
 			$logger->debug("Behavior packs: $vanilla vanilla entity overrides ignored");
 		}
 		$logger->info("Behavior packs: $registered custom entities");
+		if($registered > 0 || PlayerDefinition::get() !== null){
+			$this->registerPropertySync();
+		}
+		if(PlayerDefinition::get() !== null){
+			PlayerBehaviorManager::register($this->plugin);
+		}
+		if($registered > 0){
+			\behaviorpack\entity\behavior\PlayerInputTracker::register($this->plugin);
+			\behaviorpack\entity\behavior\goal\combat\OwnerCombatTracker::register($this->plugin);
+			$this->plugin->getServer()->getPluginManager()->registerEvent(\pocketmine\event\server\DataPacketReceiveEvent::class, function(\pocketmine\event\server\DataPacketReceiveEvent $event) : void{
+				$packet = $event->getPacket();
+				$player = $event->getOrigin()->getPlayer();
+				if($player !== null && $packet instanceof \pocketmine\network\mcpe\protocol\ItemStackRequestPacket && \behaviorpack\entity\behavior\inventory\TradeRequestHandler::handle($player, $packet)){
+					$event->cancel();
+				}
+			}, EventPriority::HIGH, $this->plugin);
+		}
+	}
+
+	/**
+	 * Sends the synced property registry of every custom entity right after
+	 * the StartGame packet, before any of them can be spawned to the player.
+	 */
+	private function registerPropertySync() : void{
+		$this->plugin->getServer()->getPluginManager()->registerEvent(DataPacketSendEvent::class, function(DataPacketSendEvent $event) : void{
+			$packets = $event->getPackets();
+			$result = [];
+			$found = false;
+			foreach($packets as $packet){
+				$result[] = $packet;
+				if($packet instanceof StartGamePacket){
+					$found = true;
+					foreach($this->classes as $identifier => $class){
+						$registry = EntityProperties::registryPacket($identifier);
+						if($registry !== null){
+							$result[] = $registry;
+						}
+					}
+					if(PlayerDefinition::get() !== null){
+						$registry = EntityProperties::registryPacket(PlayerDefinition::IDENTIFIER);
+						if($registry !== null){
+							$result[] = $registry;
+						}
+					}
+				}
+			}
+			if($found){
+				$event->setPackets($result);
+			}
+		}, EventPriority::MONITOR, $this->plugin);
 	}
 
 	/**
@@ -90,6 +145,11 @@ final class EntityLoader implements ContentLoader{
 		$identifier = $definition["description"]["identifier"] ?? null;
 		if(!is_string($identifier) || preg_match('/^[a-z0-9_.\-]+:[a-z0-9_.\-\/]+$/', strtolower($identifier)) !== 1){
 			throw new BehaviorPackException("missing or invalid description.identifier");
+		}
+		if(strtolower($identifier) === PlayerDefinition::IDENTIFIER){
+			EntityDefinitionRegistry::register(PlayerDefinition::IDENTIFIER, $definition);
+			PlayerDefinition::set($definition);
+			return false;
 		}
 		if(str_starts_with(strtolower($identifier), "minecraft:")){
 			return false;
@@ -149,7 +209,10 @@ final class EntityLoader implements ContentLoader{
 
 	public function close() : void{
 		$this->classes = [];
+		PlayerBehaviorManager::close();
+		PlayerDefinition::clear();
 		EntityDefinitionRegistry::clear();
+		EntityProperties::clear();
 	}
 
 	/**

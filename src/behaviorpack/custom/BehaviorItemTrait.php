@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 namespace behaviorpack\custom;
 
+use behaviorpack\custom\item\EntityPlacer;
+use behaviorpack\custom\item\PiercingWeapon;
+use behaviorpack\custom\item\Repairable;
 use customiesdevs\customies\item\component\ItemComponent;
 use pocketmine\block\Block;
+use pocketmine\item\Item;
+use pocketmine\item\ItemUseResult;
 use pocketmine\item\StringToItemParser;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
+use pocketmine\utils\Utils;
 
 /**
  * Shared behaviour of the items defined by a behavior pack minecraft:item
@@ -28,7 +36,13 @@ use pocketmine\item\StringToItemParser;
  *     residue: string|null,
  *     useTicks: int,
  *     armorSlot: int|null,
- *     protection: int
+ *     protection: int,
+ *     repairable: Repairable|null,
+ *     fireResistant: bool,
+ *     compostingChance: int,
+ *     entityPlacer: EntityPlacer|null,
+ *     swingSounds: array<string, string>,
+ *     piercingWeapon: PiercingWeapon|null
  * }
  */
 trait BehaviorItemTrait{
@@ -89,5 +103,56 @@ trait BehaviorItemTrait{
 			}
 		}
 		return parent::getBlock($clickedFace);
+	}
+
+	public function isFireProof() : bool{
+		return $this->definition["fireResistant"] || parent::isFireProof();
+	}
+
+	/**
+	 * Returns the minecraft:compostable chance in percent, 0 when the item
+	 * cannot be composted.
+	 */
+	public function getCompostingChance() : int{
+		return $this->definition["compostingChance"];
+	}
+
+	public function getRepairable() : ?Repairable{
+		return $this->definition["repairable"];
+	}
+
+	public function getEntityPlacer() : ?EntityPlacer{
+		return $this->definition["entityPlacer"];
+	}
+
+	public function getSwingSound(string $type) : ?string{
+		return $this->definition["swingSounds"][$type] ?? null;
+	}
+
+	public function getPiercingWeapon() : ?PiercingWeapon{
+		return $this->definition["piercingWeapon"];
+	}
+
+	/**
+	 * @param Item[] &$returnedItems
+	 */
+	public function onInteractBlock(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, array &$returnedItems) : ItemUseResult{
+		$placer = $this->definition["entityPlacer"];
+		if($placer === null){
+			return parent::onInteractBlock($player, $blockReplace, $blockClicked, $face, $clickVector, $returnedItems);
+		}
+		if(!$placer->canUseOn($blockClicked)){
+			return ItemUseResult::NONE;
+		}
+		$entity = $placer->create($player->getWorld(), $blockReplace->getPosition()->add(0.5, 0, 0.5), Utils::getRandomFloat() * 360);
+		if($entity === null){
+			return ItemUseResult::FAIL;
+		}
+		if($this->hasCustomName()){
+			$entity->setNameTag($this->getCustomName());
+		}
+		$this->pop();
+		$entity->spawnToAll();
+		return ItemUseResult::SUCCESS;
 	}
 }

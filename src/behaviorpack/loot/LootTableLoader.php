@@ -89,7 +89,7 @@ final class LootTableLoader implements ContentLoader{
 		if($path === null){
 			return;
 		}
-		if(LootTableRegistry::get($path) === null){
+		if(LootTableRegistry::get($path) === null && $path !== "loot_tables/empty.json"){
 			$this->plugin->getLogger()->warning("Behavior packs: $identifier references the missing loot table $path");
 			return;
 		}

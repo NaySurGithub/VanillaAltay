@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace behaviorpack\custom;
 
+use behaviorpack\custom\item\CombatItem;
 use customiesdevs\customies\item\ItemComponents;
 use pocketmine\item\Food;
 use pocketmine\item\Item;
@@ -15,7 +16,7 @@ use pocketmine\item\StringToItemParser;
  *
  * @phpstan-import-type ItemDefinition from BehaviorItemTrait
  */
-final class BehaviorFoodItem extends Food implements ItemComponents{
+final class BehaviorFoodItem extends Food implements ItemComponents, CombatItem{
 	use BehaviorItemTrait;
 
 	/**

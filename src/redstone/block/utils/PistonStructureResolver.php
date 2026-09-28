@@ -12,6 +12,7 @@ use pocketmine\block\Slime;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\world\World;
+use redstone\block\power\PistonMovable;
 use function array_merge;
 use function array_search;
 use function array_slice;
@@ -53,7 +54,7 @@ final class PistonStructureResolver{
 	}
 
 	public static function isSticky(Block $block) : bool{
-		return $block instanceof Slime || $block instanceof HoneyBlock;
+		return $block instanceof Slime || $block instanceof HoneyBlock || ($block instanceof PistonMovable && $block->sticksToSameType());
 	}
 
 	private static function sticksToPiston(Block $block) : bool{
@@ -63,6 +64,9 @@ final class PistonStructureResolver{
 	private static function canStickTogether(Block $sticky, Block $adjacent) : bool{
 		if(!self::isSticky($sticky) || !self::sticksToPiston($adjacent)){
 			return false;
+		}
+		if($sticky instanceof PistonMovable && $sticky->sticksToSameType()){
+			return $sticky->getTypeId() === $adjacent->getTypeId();
 		}
 		if(self::isSticky($adjacent)){
 			return $sticky->getTypeId() === $adjacent->getTypeId();
@@ -75,11 +79,14 @@ final class PistonStructureResolver{
 	}
 
 	private static function breaksWhenMoved(Block $block) : bool{
-		return $block->canBeFlowedInto();
+		return $block->canBeFlowedInto() || ($block instanceof PistonMovable && $block->breaksWhenMoved());
 	}
 
 	private function canPush(Block $block) : bool{
 		if(!$this->extending && $block instanceof GlazedTerracotta){
+			return false;
+		}
+		if(!$this->extending && $block instanceof PistonMovable && !$block->canBePulled()){
 			return false;
 		}
 		return ($this->can_move)($block, $block->getPosition()->getSide($this->push_direction));

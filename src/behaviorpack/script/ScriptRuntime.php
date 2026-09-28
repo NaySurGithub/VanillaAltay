@@ -24,6 +24,9 @@ use function count;
 use function hrtime;
 use function implode;
 use function is_array;
+use function is_bool;
+use function is_float;
+use function is_int;
 use function is_string;
 use function max;
 use function substr;
@@ -38,6 +41,13 @@ use function ucfirst;
 final class ScriptRuntime{
 
 	public const WATCHDOG_MS = 2000;
+
+	/**
+	 * The delay allowed while the packs load and run their startup event,
+	 * which also covers the server work they cause, such as creating the
+	 * worlds of custom dimensions.
+	 */
+	private const STARTUP_WATCHDOG_MS = 120000;
 
 	private const JOB_BUDGET_NS = 4_000_000;
 
@@ -98,6 +108,17 @@ final class ScriptRuntime{
 	private int $depth = 0;
 
 	public bool $scoreboardDirty = false;
+
+	/** @var (Closure(array<string, mixed>) : void)|null */
+	public ?Closure $screenHandler = null;
+
+	/**
+	 * Handlers of internal queued messages ("__name"), registered by the
+	 * binding modules.
+	 *
+	 * @var array<string, Closure(array<string, mixed>) : void>
+	 */
+	public array $queuedHandlers = [];
 
 	public function __construct(
 		public ScriptApi $api,
@@ -282,6 +303,19 @@ final class ScriptRuntime{
 		$this->declaredBlocks = $blocks;
 		$this->declaredItems = $items;
 		$this->currentTick = $tick;
+		$runtimeWatchdog = $this->watchdogMs;
+		$this->watchdogMs = max($runtimeWatchdog, self::STARTUP_WATCHDOG_MS);
+		try{
+			return $this->startPacks($entries);
+		}finally{
+			$this->watchdogMs = $runtimeWatchdog;
+		}
+	}
+
+	/**
+	 * @param list<array{name: string, root: string, entry: string}> $entries
+	 */
+	private function startPacks(array $entries) : int{
 		$loaded = 0;
 		foreach($entries as $entry){
 			$this->run($entry["name"], function() use ($entry, &$loaded) : void{
@@ -358,11 +392,18 @@ final class ScriptRuntime{
 			return null;
 		}
 		$result = ["c" => $this->js->toBoolean($event->props["cancel"] ?? false)];
-		if($name === "chatSend"){
-			$message = $event->props["message"] ?? null;
-			if(is_string($message) && $message !== ($data["message"] ?? null)){
-				$result["m"] = ["message" => $message];
+		$changed = [];
+		foreach($data as $key => $original){
+			if(!is_string($original) && !is_int($original) && !is_float($original) && !is_bool($original)){
+				continue;
 			}
+			$current = $event->props[$key] ?? null;
+			if((is_string($current) || is_int($current) || is_float($current) || is_bool($current)) && $current !== $original){
+				$changed[$key] = $current;
+			}
+		}
+		if(count($changed) > 0){
+			$result["m"] = $changed;
 		}
 		return $result;
 	}
@@ -409,6 +450,15 @@ final class ScriptRuntime{
 			case "__comp":
 				$this->dispatchComponent($data);
 				return;
+			case "__ddui":
+				if($this->screenHandler !== null){
+					($this->screenHandler)($data);
+				}
+				return;
+		}
+		if(isset($this->queuedHandlers[$name])){
+			($this->queuedHandlers[$name])($data);
+			return;
 		}
 		$this->dispatch("after." . $name, ucfirst($name) . "AfterEvent", $data, false);
 		if($name === "entityDie"){
@@ -540,34 +590,53 @@ final class ScriptRuntime{
 	/**
 	 * @param array<string, mixed> $message
 	 */
-	private function dispatchComponent(array $message) : void{
+	private function dispatchComponent(array $message, bool $before = false) : bool{
 		$block = ($message["k"] ?? null) === "b";
 		$typeId = (string) ($message["t"] ?? "");
 		$hook = (string) ($message["h"] ?? "");
 		$declared = $block ? ($this->declaredBlocks[$typeId] ?? null) : ($this->declaredItems[$typeId] ?? null);
 		if($declared === null){
-			return;
+			return false;
 		}
 		$registry = $block ? $this->blockComponents : $this->itemComponents;
 		$data = is_array($message["d"] ?? null) ? $message["d"] : [];
-		$className = ($block ? "BlockComponent" : "ItemComponent") . ucfirst(\substr($hook, 2)) . "Event";
+		$eventName = $hook === "beforeOnPlayerPlace" ? "PlayerPlaceBefore" : ucfirst(\substr($hook, 2));
+		$className = ($block ? "BlockComponent" : "ItemComponent") . $eventName . "Event";
+		$cancelled = false;
 		foreach($declared as $name => $params){
 			$entry = $registry[$name] ?? null;
 			if($entry === null){
 				continue;
 			}
 			[$component, $pack] = $entry;
-			$this->run($pack, function() use ($component, $hook, $className, $data, $params) : void{
+			$this->run($pack, function() use ($component, $hook, $className, $data, $params, $before, &$cancelled) : void{
 				$function = $this->js->get($component, $hook);
+				if(!$function instanceof JsCallable && $hook === "onPlayerBreak"){
+					$function = $this->js->get($component, "onPlayerDestroy");
+				}
 				if(!$function instanceof JsCallable){
 					return;
 				}
-				$event = $this->server->createEvent($className, $data, false);
+				$event = $this->server->createEvent($className, $data, $before);
 				$parameters = $this->js->newObject();
 				$parameters->props["params"] = $this->server->toJs($params);
 				$this->js->call($function, $component, [$event, $parameters]);
+				if($before && $this->js->toBoolean($event->props["cancel"] ?? false)){
+					$cancelled = true;
+				}
 			});
 		}
+		return $cancelled;
+	}
+
+	/**
+	 * Runs a custom component hook right away and returns whether a script
+	 * cancelled it.
+	 *
+	 * @param array<string, mixed> $message
+	 */
+	public function dispatchComponentSync(array $message) : bool{
+		return $this->dispatchComponent($message, true);
 	}
 
 	/**

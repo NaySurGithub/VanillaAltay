@@ -6,6 +6,9 @@ namespace behaviorpack\custom;
 
 use behaviorpack\BehaviorPack;
 use behaviorpack\BehaviorPackException;
+use behaviorpack\custom\connection\CardinalConnections;
+use behaviorpack\custom\connection\MultiBlock;
+use behaviorpack\custom\connection\StairCorner;
 use customiesdevs\customies\block\CustomiesBlockFactory;
 use pocketmine\block\Block;
 use pocketmine\block\BlockTypeIds;
@@ -26,6 +29,7 @@ use function is_string;
 use function range;
 use function sort;
 use function str_contains;
+use function str_starts_with;
 use const SORT_REGULAR;
 
 /**
@@ -126,7 +130,7 @@ final class CustomBlockRegistrar{
 		}
 
 		$flammability = isset($components["minecraft:flammable"]) ? BlockComponentMapper::flammability($components["minecraft:flammable"]) : null;
-		$collision = isset($components["minecraft:collision_box"]) ? BlockComponentMapper::box($components["minecraft:collision_box"]) : [0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+		$collision = isset($components["minecraft:collision_box"]) ? BlockComponentMapper::box($components["minecraft:collision_box"]) : BlockComponentMapper::defaultCollision($components);
 		if($collision !== null && ($collision[3] < $collision[0] || $collision[4] < $collision[1] || $collision[5] < $collision[2])){
 			throw new BehaviorPackException("minecraft:collision_box has a negative size");
 		}
@@ -174,7 +178,7 @@ final class CustomBlockRegistrar{
 		$unsupported = [];
 		foreach($components as $name => $value){
 			$name = (string) $name;
-			if(in_array($name, BlockComponentMapper::IGNORED, true)){
+			if(in_array($name, BlockComponentMapper::IGNORED, true) || str_starts_with($name, "tag:") || !str_starts_with($name, "minecraft:")){
 				continue;
 			}
 			if(!BlockComponentMapper::isSupported($name)){
@@ -256,14 +260,41 @@ final class CustomBlockRegistrar{
 	}
 
 	/**
-	 * Adds the states of the supported placement traits to the properties.
+	 * Adds the states of the supported traits to the properties, and lists
+	 * the traits to send to the client with the states they generate.
 	 *
 	 * @param list<array{string, list<bool|int|string>}> $properties
-	 * @return array{cardinal: bool, yRotationOffset: int, facing: bool, blockFace: bool, verticalHalf: bool}
+	 * @return array{
+	 *     cardinal: bool,
+	 *     yRotationOffset: int,
+	 *     facing: bool,
+	 *     blockFace: bool,
+	 *     verticalHalf: bool,
+	 *     corner: bool,
+	 *     cornerWith: list<array{string, bool|string, list<string>}>,
+	 *     connection: bool,
+	 *     multiBlockParts: int,
+	 *     multiBlockUp: bool,
+	 *     traitStates: list<string>,
+	 *     network: list<array{string, list<string>, array<string, int|float|string>}>
+	 * }
 	 * @throws BehaviorPackException
 	 */
 	private function readTraits(mixed $traits, array &$properties) : array{
-		$result = ["cardinal" => false, "yRotationOffset" => 0, "facing" => false, "blockFace" => false, "verticalHalf" => false];
+		$result = [
+			"cardinal" => false,
+			"yRotationOffset" => 0,
+			"facing" => false,
+			"blockFace" => false,
+			"verticalHalf" => false,
+			"corner" => false,
+			"cornerWith" => [],
+			"connection" => false,
+			"multiBlockParts" => 0,
+			"multiBlockUp" => true,
+			"traitStates" => [],
+			"network" => []
+		];
 		if(!is_array($traits)){
 			throw new BehaviorPackException("description.traits must be an object");
 		}
@@ -271,36 +302,94 @@ final class CustomBlockRegistrar{
 		foreach($properties as [$name]){
 			$names[$name] = true;
 		}
-		$add = static function(string $name, array $values) use (&$properties, &$names) : bool{
+		$add = static function(string $name, array $values) use (&$properties, &$names, &$result) : bool{
 			if(isset($names[$name])){
 				return false;
 			}
 			$names[$name] = true;
 			$properties[] = [$name, $values];
+			$result["traitStates"][] = $name;
 			return true;
 		};
 
 		foreach(array_keys($traits) as $trait){
 			$config = $traits[$trait];
 			$enabled = is_array($config) && is_array($config["enabled_states"] ?? null) ? $config["enabled_states"] : [];
+			$sent = [];
+			$extra = [];
 			if($trait === "minecraft:placement_direction"){
-				if(in_array(BehaviorPermutableBlock::CARDINAL_DIRECTION, $enabled, true)){
+				if(in_array(StairCorner::CORNER_AND_CARDINAL, $enabled, true)){
+					$cardinal = $add(BehaviorPermutableBlock::CARDINAL_DIRECTION, self::DIRECTIONS);
+					$corner = $add(StairCorner::CORNER, StairCorner::CORNER_VALUES);
+					if(!$cardinal || !$corner){
+						throw new BehaviorPackException("minecraft:corner_and_cardinal_direction conflicts with a declared state");
+					}
+					$result["cardinal"] = true;
+					$result["corner"] = true;
+					$result["cornerWith"] = StairCorner::readDescriptors($config["blocks_to_corner_with"] ?? null);
+					$sent[] = "corner_and_cardinal_direction";
+				}elseif(in_array(BehaviorPermutableBlock::CARDINAL_DIRECTION, $enabled, true)){
 					$result["cardinal"] = $add(BehaviorPermutableBlock::CARDINAL_DIRECTION, self::DIRECTIONS);
+					if($result["cardinal"]){
+						$sent[] = "cardinal_direction";
+					}
 				}
 				if(in_array(BehaviorPermutableBlock::FACING_DIRECTION, $enabled, true)){
 					$result["facing"] = $add(BehaviorPermutableBlock::FACING_DIRECTION, self::FACES);
+					if($result["facing"]){
+						$sent[] = "facing_direction";
+					}
 				}
 				$offset = is_array($config) ? ($config["y_rotation_offset"] ?? 0) : 0;
 				$result["yRotationOffset"] = is_int($offset) || is_float($offset) ? (int) $offset : 0;
+				$extra["y_rotation_offset"] = (float) $result["yRotationOffset"];
 			}elseif($trait === "minecraft:placement_position"){
 				if(in_array(BehaviorPermutableBlock::BLOCK_FACE, $enabled, true)){
 					$result["blockFace"] = $add(BehaviorPermutableBlock::BLOCK_FACE, self::FACES);
+					if($result["blockFace"]){
+						$sent[] = "block_face";
+					}
 				}
 				if(in_array(BehaviorPermutableBlock::VERTICAL_HALF, $enabled, true)){
 					$result["verticalHalf"] = $add(BehaviorPermutableBlock::VERTICAL_HALF, ["bottom", "top"]);
+					if($result["verticalHalf"]){
+						$sent[] = "vertical_half";
+					}
 				}
+			}elseif($trait === "minecraft:connection"){
+				if(in_array("minecraft:cardinal_connections", $enabled, true)){
+					foreach(CardinalConnections::STATES as $state){
+						if(!$add($state, [false, true])){
+							throw new BehaviorPackException("minecraft:cardinal_connections conflicts with the declared state $state");
+						}
+					}
+					$result["connection"] = true;
+					$sent[] = "cardinal_connections";
+				}
+			}elseif($trait === "minecraft:multi_block"){
+				$parts = is_array($config) ? ($config["parts"] ?? 2) : 2;
+				$direction = is_array($config) ? ($config["direction"] ?? "up") : "up";
+				if(!is_int($parts) || $parts < 2 || $parts > 4){
+					throw new BehaviorPackException("minecraft:multi_block parts must be between 2 and 4");
+				}
+				if($direction !== "up" && $direction !== "down"){
+					throw new BehaviorPackException("minecraft:multi_block direction must be \"up\" or \"down\"");
+				}
+				if(in_array(MultiBlock::PART, $enabled, true)){
+					if(!$add(MultiBlock::PART, range(0, $parts - 1))){
+						throw new BehaviorPackException("minecraft:multi_block_part conflicts with a declared state");
+					}
+					$result["multiBlockParts"] = $parts;
+					$result["multiBlockUp"] = $direction === "up";
+					$sent[] = "multi_block_part";
+				}
+				$extra["parts"] = $parts;
+				$extra["direction"] = $direction;
 			}else{
 				throw new BehaviorPackException("unsupported trait $trait");
+			}
+			if(count($sent) > 0){
+				$result["network"][] = [$trait, $sent, $extra];
 			}
 		}
 		return $result;

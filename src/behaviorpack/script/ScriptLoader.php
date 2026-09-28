@@ -15,7 +15,9 @@ use Throwable;
 use function count;
 use function is_array;
 use function is_file;
+use function is_numeric;
 use function is_string;
+use function round;
 use function rtrim;
 use function str_replace;
 use function str_starts_with;
@@ -34,8 +36,17 @@ final class ScriptLoader implements ContentLoader{
 	private ScriptValues $values;
 	private ScriptStorage $storage;
 	private ScriptApi $api;
+	private ScriptPlayerState $state;
+	private ScriptStructures $structures;
+	private ScriptFeatures $features;
+	private ScriptJigsaw $jigsaw;
+	private ScriptExtendedApi $extended;
+	private ?ScriptEventListener $listener = null;
 	private ?ScriptRuntime $runtime = null;
 	private ?TaskHandler $tickTask = null;
+
+	/** @var array<string, int> */
+	private array $useDurations = [];
 
 	/** @var list<array{e: string, d: mixed}> */
 	private array $queue = [];
@@ -53,8 +64,45 @@ final class ScriptLoader implements ContentLoader{
 		private int $timeoutMs = ScriptRuntime::WATCHDOG_MS
 	){
 		$this->values = new ScriptValues($plugin->getServer());
-		$this->storage = new ScriptStorage(rtrim(str_replace("\\", "/", $plugin->getDataFolder()), "/") . "/scripts");
-		$this->api = new ScriptApi($this, $this->values, $this->storage);
+		$directory = rtrim(str_replace("\\", "/", $plugin->getDataFolder()), "/") . "/scripts";
+		$this->storage = new ScriptStorage($directory);
+		$this->state = new ScriptPlayerState();
+		$this->structures = new ScriptStructures($directory . "/structures");
+		$this->features = new ScriptFeatures($this->values, $this->structures);
+		$this->jigsaw = new ScriptJigsaw($this->values, $this->structures);
+		$this->extended = new ScriptExtendedApi($this->values, $this->structures, $this->features, $this->jigsaw, $this->state);
+		$handlers = [];
+		foreach(["cmd." => "CommandApi", "rule." => "GameRuleApi", "tag." => "TagApi", "dimx." => "DimensionApi"] as $prefix => $name){
+			$class = "behaviorpack\\script\\api\\" . $name;
+			if(\class_exists($class)){
+				$handlers[$prefix] = new $class($this->values, $this);
+			}
+		}
+		$this->api = new ScriptApi($this, $this->values, $this->storage, $this->extended, $handlers);
+	}
+
+	public function getPlugin() : PluginBase{
+		return $this->plugin;
+	}
+
+	public function getRuntime() : ?ScriptRuntime{
+		return $this->runtime;
+	}
+
+	public function getPlayerState() : ScriptPlayerState{
+		return $this->state;
+	}
+
+	public function getExtendedApi() : ScriptExtendedApi{
+		return $this->extended;
+	}
+
+	/**
+	 * Returns how long an item of the packs takes to use, in ticks, when it
+	 * declares a use duration or is food.
+	 */
+	public function useDuration(string $typeId) : ?int{
+		return $this->useDurations[$typeId] ?? null;
 	}
 
 	public function getName() : string{
@@ -66,6 +114,12 @@ final class ScriptLoader implements ContentLoader{
 	}
 
 	public function load(array $packs) : void{
+		$this->structures->registerPacks($packs);
+		$this->features->registerPacks($packs);
+		$this->jigsaw->registerPacks($packs);
+		if(\class_exists(\behaviorpack\script\api\TagApi::class)){
+			\behaviorpack\script\api\TagApi::registerPacks($packs);
+		}
 		$entries = [];
 		foreach($packs as $pack){
 			$entry = $pack->getScriptEntry();
@@ -73,6 +127,9 @@ final class ScriptLoader implements ContentLoader{
 				continue;
 			}
 			$path = $pack->getPath() . "/" . $entry;
+			if(!is_file($path) && is_file($pack->getPath() . "/scripts/" . $entry)){
+				$path = $pack->getPath() . "/scripts/" . $entry;
+			}
 			if(!is_file($path)){
 				$this->plugin->getLogger()->warning("Behavior packs: script entry " . $entry . " not found in " . $pack->getName());
 				continue;
@@ -104,7 +161,17 @@ final class ScriptLoader implements ContentLoader{
 			$this->plugin->getLogger()->logException($e);
 			return;
 		}
-		(new ScriptEventListener($this, $this->values, $this->storage))->register($this->plugin);
+		if(\class_exists(\behaviorpack\entity\player\PlayerSelector::class)){
+			\behaviorpack\entity\player\PlayerSelector::$tagResolver = function(\pocketmine\player\Player $player, string $tag) : bool{
+				return \in_array($tag, $this->storage->getTags($this->values->scope($player)), true);
+			};
+			\behaviorpack\entity\player\PlayerSelector::$scoreResolver = function(\pocketmine\player\Player $player, string $objective) : ?int{
+				$score = $this->runtime?->server->scoreboardData["objectives"][$objective]["scores"]["p:" . $player->getName()] ?? null;
+				return \is_int($score) ? $score : null;
+			};
+		}
+		$this->listener = new ScriptEventListener($this, $this->values, $this->storage, $this->state, $this->extended);
+		$this->listener->register($this->plugin);
 		$server->getCommandMap()->register($this->plugin->getName(), new ScriptEventCommand($this->plugin, $this));
 		$loaded = $this->runtime->start($entries, $this->blockComponents, $this->itemComponents, $server->getTick());
 		$this->tickTask = $this->plugin->getScheduler()->scheduleRepeatingTask(new ClosureTask(function() : void{
@@ -133,6 +200,7 @@ final class ScriptLoader implements ContentLoader{
 			$this->queue = [];
 			return;
 		}
+		$this->listener?->flush();
 		if(count($this->queue) === 0 && !$runtime->hasPending()){
 			return;
 		}
@@ -180,11 +248,42 @@ final class ScriptLoader implements ContentLoader{
 		return $this->runtime->dispatchBefore($event, $data);
 	}
 
+	/**
+	 * Runs a custom component hook right away and returns whether a script
+	 * cancelled it.
+	 *
+	 * @param array<string, mixed> $message
+	 */
+	public function dispatchComponentSync(array $message) : bool{
+		if($this->runtime === null || $this->runtime->isStopped()){
+			return false;
+		}
+		return $this->runtime->dispatchComponentSync($message);
+	}
+
 	public function sendScriptEvent(string $id, string $message, ?Entity $source) : void{
 		if(!$this->wants("after.scriptEventReceive") || $this->runtime === null){
 			return;
 		}
 		$this->runtime->sendScriptEvent($id, $message, $source === null ? null : $this->values->entityRef($source));
+	}
+
+	/**
+	 * @param array<mixed> $components
+	 */
+	private function collectUseDuration(string $typeId, array $components) : void{
+		$seconds = null;
+		$modifiers = $components["minecraft:use_modifiers"] ?? null;
+		if(is_array($modifiers) && is_numeric($modifiers["use_duration"] ?? null)){
+			$seconds = (float) $modifiers["use_duration"];
+		}elseif(is_numeric($components["minecraft:use_duration"] ?? null)){
+			$seconds = (float) $components["minecraft:use_duration"];
+		}elseif(isset($components["minecraft:food"])){
+			$seconds = 1.6;
+		}
+		if($seconds !== null){
+			$this->useDurations[$typeId] = (int) round($seconds * 20);
+		}
 	}
 
 	/**
@@ -204,6 +303,9 @@ final class ScriptLoader implements ContentLoader{
 				$typeId = is_array($definition) ? ($definition["description"]["identifier"] ?? null) : null;
 				if(!is_string($typeId)){
 					continue;
+				}
+				if($directory === "items"){
+					$this->collectUseDuration($typeId, is_array($definition["components"] ?? null) ? $definition["components"] : []);
 				}
 				$groups = [$definition["components"] ?? []];
 				foreach(is_array($definition["permutations"] ?? null) ? $definition["permutations"] : [] as $permutation){

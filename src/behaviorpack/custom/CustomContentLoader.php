@@ -6,6 +6,8 @@ namespace behaviorpack\custom;
 
 use behaviorpack\BehaviorPack;
 use behaviorpack\ContentLoader;
+use behaviorpack\custom\catalog\CreativeCatalog;
+use behaviorpack\custom\catalog\CreativeCatalogApplier;
 use Closure;
 use customiesdevs\customies\item\CreativeInventoryInfo;
 use pocketmine\plugin\PluginBase;
@@ -31,6 +33,8 @@ final class CustomContentLoader implements ContentLoader{
 		"nature"
 	];
 
+	private static ?CreativeCatalog $catalog = null;
+
 	public function __construct(
 		private PluginBase $plugin
 	){
@@ -45,6 +49,9 @@ final class CustomContentLoader implements ContentLoader{
 	}
 
 	public function load(array $packs) : void{
+		self::$catalog = CreativeCatalog::load($packs, $this->plugin->getLogger());
+		$this->plugin->getServer()->getPluginManager()->registerEvents(new \behaviorpack\custom\connection\BlockTraitPacketListener(), $this->plugin);
+		$this->plugin->getServer()->getPluginManager()->registerEvents(new \behaviorpack\custom\item\ComposterListener($this->plugin), $this->plugin);
 		$blockRegistrar = new CustomBlockRegistrar($this->plugin);
 		$itemRegistrar = new CustomItemRegistrar($this->plugin);
 		$blockCount = 0;
@@ -77,6 +84,12 @@ final class CustomContentLoader implements ContentLoader{
 			}
 		}
 
+		try{
+			(new CreativeCatalogApplier(self::$catalog))->apply();
+		}catch(Throwable $e){
+			$this->plugin->getLogger()->warning("Behavior packs: failed to apply item catalogs: " . $e->getMessage());
+		}
+
 		if($itemCount > 0 || $blockCount > 0){
 			$this->plugin->getLogger()->info("Behavior packs: $itemCount custom items, $blockCount custom blocks");
 		}
@@ -92,6 +105,11 @@ final class CustomContentLoader implements ContentLoader{
 	 * @param array<mixed> $description
 	 */
 	public static function creativeInfo(array $description) : ?CreativeInventoryInfo{
+		$identifier = $description["identifier"] ?? null;
+		$entry = is_string($identifier) ? self::$catalog?->get($identifier) : null;
+		if($entry !== null){
+			return new CreativeInventoryInfo($entry->category, $entry->group ?? CreativeInventoryInfo::NONE);
+		}
 		$menu = $description["menu_category"] ?? null;
 		$category = is_array($menu) ? ($menu["category"] ?? null) : ($description["category"] ?? null);
 		if(!is_string($category) || !in_array($category, self::CATEGORIES, true)){

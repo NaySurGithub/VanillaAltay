@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace behaviorpack\custom;
 
 use behaviorpack\BehaviorPackException;
+use behaviorpack\custom\block\ExtraBlockComponents;
+use behaviorpack\custom\block\LiquidDetection;
+use behaviorpack\custom\block\PlacementFilter;
 use customiesdevs\customies\block\component\BlockComponent;
 use customiesdevs\customies\block\component\CollisionBoxComponent;
 use customiesdevs\customies\block\component\DestructibleByExplosionComponent;
@@ -40,7 +43,9 @@ final class BlockComponentMapper{
 	/** Components handled by other loaders or by scripts, never reported. */
 	public const IGNORED = [
 		"minecraft:loot",
-		"minecraft:custom_components"
+		"minecraft:custom_components",
+		"minecraft:tick",
+		"minecraft:redstone_consumer"
 	];
 
 	public const SUPPORTED = [
@@ -56,8 +61,25 @@ final class BlockComponentMapper{
 		"minecraft:light_dampening",
 		"minecraft:flammable",
 		"minecraft:display_name",
-		"minecraft:transformation"
+		"minecraft:transformation",
+		"minecraft:liquid_detection",
+		"minecraft:map_color",
+		"minecraft:destruction_particles",
+		"minecraft:redstone_conductivity",
+		"minecraft:movable",
+		"minecraft:precipitation_interactions",
+		"minecraft:flower_pottable",
+		"minecraft:random_offset",
+		"minecraft:replaceable",
+		"minecraft:support",
+		"minecraft:placement_filter",
+		"minecraft:embedded_visual",
+		"minecraft:item_visual",
+		"minecraft:connection_rule"
 	];
+
+	public const GEOMETRY_FULL_BLOCK = "minecraft:geometry.full_block";
+	public const GEOMETRY_CROSS = "minecraft:geometry.cross";
 
 	private function __construct(){
 	}
@@ -87,8 +109,48 @@ final class BlockComponentMapper{
 			"minecraft:flammable" => self::flammable($value),
 			"minecraft:display_name" => new DisplayNameComponent(self::displayName($value)),
 			"minecraft:transformation" => self::transformation($value),
+			"minecraft:liquid_detection" => LiquidDetection::component($value),
+			"minecraft:map_color" => ExtraBlockComponents::mapColor($value),
+			"minecraft:destruction_particles" => ExtraBlockComponents::destructionParticles($value),
+			"minecraft:redstone_conductivity" => ExtraBlockComponents::redstoneConductivityComponent($value),
+			"minecraft:movable" => ExtraBlockComponents::movableComponent($value),
+			"minecraft:precipitation_interactions" => ExtraBlockComponents::precipitationInteractions($value),
+			"minecraft:flower_pottable", "minecraft:replaceable" => ExtraBlockComponents::marker($name, $value),
+			"minecraft:random_offset" => ExtraBlockComponents::randomOffset($value),
+			"minecraft:support" => ExtraBlockComponents::support($value),
+			"minecraft:placement_filter" => PlacementFilter::component($value),
+			"minecraft:embedded_visual", "minecraft:item_visual" => ExtraBlockComponents::visual($name, $value),
+			"minecraft:connection_rule" => \behaviorpack\custom\connection\ConnectionRule::map($value),
 			default => null
 		};
+	}
+
+	/**
+	 * Returns the geometry identifier of a minecraft:geometry value, or null
+	 * when it has none.
+	 */
+	public static function geometryIdentifier(mixed $value) : ?string{
+		if(is_string($value)){
+			return $value;
+		}
+		if(is_array($value) && is_string($value["identifier"] ?? null)){
+			return $value["identifier"];
+		}
+		return null;
+	}
+
+	/**
+	 * Returns the collision box a block gets when it has no collision_box
+	 * component: none for the cross geometry, a full cube otherwise.
+	 *
+	 * @param array<mixed> $components
+	 * @return list<float>|null
+	 */
+	public static function defaultCollision(array $components) : ?array{
+		if(self::geometryIdentifier($components["minecraft:geometry"] ?? null) === self::GEOMETRY_CROSS){
+			return null;
+		}
+		return [0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
 	}
 
 	/**
@@ -299,6 +361,17 @@ final class BlockComponentMapper{
 	private static function boxVectors(mixed $value) : array{
 		if(!is_array($value)){
 			throw new BehaviorPackException("A block box must be a boolean or an object");
+		}
+		if(\array_is_list($value) && count($value) > 0 && is_array($value[0])){
+			$min = null;
+			$max = null;
+			foreach($value as $box){
+				[$boxOrigin, $boxSize] = self::boxVectors($box);
+				$boxMax = $boxOrigin->addVector($boxSize);
+				$min = $min === null ? $boxOrigin : new Vector3(min($min->x, $boxOrigin->x), min($min->y, $boxOrigin->y), min($min->z, $boxOrigin->z));
+				$max = $max === null ? $boxMax : new Vector3(max($max->x, $boxMax->x), max($max->y, $boxMax->y), max($max->z, $boxMax->z));
+			}
+			return [$min, $max->subtractVector($min)];
 		}
 		$origin = self::triple($value["origin"] ?? [-8, 0, -8], 0.0);
 		$size = self::triple($value["size"] ?? [16, 16, 16], 16.0);

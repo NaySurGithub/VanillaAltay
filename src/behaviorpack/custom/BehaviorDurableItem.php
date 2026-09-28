@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace behaviorpack\custom;
 
+use behaviorpack\custom\item\CombatItem;
+use behaviorpack\custom\item\RepairableTrait;
 use customiesdevs\customies\item\ItemComponents;
 use pocketmine\item\Durable;
 use pocketmine\item\ItemIdentifier;
@@ -13,8 +15,9 @@ use pocketmine\item\ItemIdentifier;
  *
  * @phpstan-import-type ItemDefinition from BehaviorItemTrait
  */
-final class BehaviorDurableItem extends Durable implements ItemComponents{
+final class BehaviorDurableItem extends Durable implements ItemComponents, CombatItem{
 	use BehaviorItemTrait;
+	use RepairableTrait;
 
 	/**
 	 * @phpstan-param ItemDefinition $definition

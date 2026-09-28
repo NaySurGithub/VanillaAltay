@@ -6,6 +6,13 @@ namespace behaviorpack\custom;
 
 use behaviorpack\BehaviorPack;
 use behaviorpack\BehaviorPackException;
+use behaviorpack\custom\item\CombatItem;
+use behaviorpack\custom\item\CombatItemListener;
+use behaviorpack\custom\item\EntityPlacer;
+use behaviorpack\custom\item\EntityPlacerDispensable;
+use behaviorpack\custom\item\PiercingWeapon;
+use behaviorpack\custom\item\RawItemComponent;
+use behaviorpack\custom\item\Repairable;
 use customiesdevs\customies\item\component\AllowOffHandComponent;
 use customiesdevs\customies\item\component\BlockPlacerComponent;
 use customiesdevs\customies\item\component\BundleInteractionComponent;
@@ -49,6 +56,7 @@ use pocketmine\item\ItemIdentifier;
 use pocketmine\item\ItemTypeIds;
 use pocketmine\item\StringToItemParser;
 use pocketmine\plugin\PluginBase;
+use redstone\block\tile\dispenser\DispensableItemManager;
 use function count;
 use function implode;
 use function in_array;
@@ -60,7 +68,9 @@ use function is_string;
 use function preg_match_all;
 use function round;
 use function str_contains;
+use function str_starts_with;
 use function strrpos;
+use function strtolower;
 use function substr;
 
 /**
@@ -74,7 +84,8 @@ final class CustomItemRegistrar{
 
 	/** Components handled by other loaders or by scripts, never reported. */
 	private const IGNORED = [
-		"minecraft:custom_components"
+		"minecraft:custom_components",
+		"minecraft:tags"
 	];
 
 	private const SATURATION = [
@@ -105,6 +116,8 @@ final class CustomItemRegistrar{
 		WearableComponent::SLOT_ARMOR_LEGS => ArmorInventory::SLOT_LEGS,
 		WearableComponent::SLOT_ARMOR_FEET => ArmorInventory::SLOT_FEET
 	];
+
+	private bool $combatListenerRegistered = false;
 
 	public function __construct(
 		private PluginBase $plugin
@@ -150,6 +163,9 @@ final class CustomItemRegistrar{
 		if(!is_array($description) || !is_string($identifier) || !str_contains($identifier, ":")){
 			throw new BehaviorPackException("missing or invalid description.identifier");
 		}
+		if(str_starts_with(strtolower($identifier), "minecraft:")){
+			return false;
+		}
 		if(StringToItemParser::getInstance()->parse($identifier) !== null){
 			throw new BehaviorPackException("$identifier is already registered");
 		}
@@ -177,7 +193,13 @@ final class CustomItemRegistrar{
 			"residue" => null,
 			"useTicks" => 0,
 			"armorSlot" => null,
-			"protection" => 0
+			"protection" => 0,
+			"repairable" => null,
+			"fireResistant" => false,
+			"compostingChance" => 0,
+			"entityPlacer" => null,
+			"swingSounds" => [],
+			"piercingWeapon" => null
 		];
 		$food = false;
 		$texture = substr($identifier, (int) strrpos($identifier, ":") + 1);
@@ -326,8 +348,35 @@ final class CustomItemRegistrar{
 				case "minecraft:bundle_interaction":
 					$list[] = new BundleInteractionComponent((int) $this->number($value, "num_viewable_slots", $name));
 					break;
+				case "minecraft:repairable":
+					$definition["repairable"] = new Repairable($value);
+					$list[] = new RawItemComponent($name, $definition["repairable"]->networkValue());
+					break;
+				case "minecraft:fire_resistant":
+					$definition["fireResistant"] = !is_array($value) || ($value["value"] ?? true) !== false;
+					$list[] = new RawItemComponent($name, ["value" => $definition["fireResistant"]]);
+					break;
+				case "minecraft:compostable":
+					$definition["compostingChance"] = (int) $this->number($value, "composting_chance", $name);
+					$list[] = new RawItemComponent($name, ["composting_chance" => $definition["compostingChance"]]);
+					break;
+				case "minecraft:entity_placer":
+					$definition["entityPlacer"] = new EntityPlacer($value);
+					$list[] = new RawItemComponent($name, $definition["entityPlacer"]->networkValue());
+					break;
+				case "minecraft:swing_sounds":
+					$definition["swingSounds"] = $this->swingSounds($value);
+					$list[] = new RawItemComponent($name, $definition["swingSounds"]);
+					break;
+				case "minecraft:swing_duration":
+					$list[] = new RawItemComponent($name, ["value" => $this->number($value, "value", $name)]);
+					break;
+				case "minecraft:piercing_weapon":
+					$definition["piercingWeapon"] = new PiercingWeapon($value);
+					$list[] = new RawItemComponent($name, $definition["piercingWeapon"]->networkValue());
+					break;
 				default:
-					if(!in_array($name, self::IGNORED, true)){
+					if(!in_array($name, self::IGNORED, true) && str_starts_with($name, "minecraft:")){
 						$unsupported[] = $name;
 					}
 			}
@@ -361,7 +410,32 @@ final class CustomItemRegistrar{
 			$identifier,
 			CustomContentLoader::creativeInfo($description)
 		);
+		if($definition["entityPlacer"] !== null){
+			DispensableItemManager::register($item, new EntityPlacerDispensable($definition["entityPlacer"]));
+		}
+		if(!$this->combatListenerRegistered && (count($definition["swingSounds"]) > 0 || $definition["piercingWeapon"] !== null)){
+			$this->combatListenerRegistered = true;
+			CombatItemListener::register($this->plugin);
+		}
 		return true;
+	}
+
+	/**
+	 * @return array<string, string>
+	 * @throws BehaviorPackException
+	 */
+	private function swingSounds(mixed $value) : array{
+		if(!is_array($value)){
+			throw new BehaviorPackException("minecraft:swing_sounds must be an object");
+		}
+		$sounds = [];
+		foreach([CombatItem::SOUND_HIT, CombatItem::SOUND_MISS, CombatItem::SOUND_CRITICAL_HIT] as $type){
+			$sound = $value[$type] ?? null;
+			if(is_string($sound) && $sound !== ""){
+				$sounds[$type] = $sound;
+			}
+		}
+		return $sounds;
 	}
 
 	/**

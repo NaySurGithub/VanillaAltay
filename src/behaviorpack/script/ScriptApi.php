@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace behaviorpack\script;
 
 use behaviorpack\entity\BehaviorEntity;
+use behaviorpack\entity\player\PlayerBehaviorManager;
 use pocketmine\block\Block;
 use pocketmine\block\Liquid;
 use pocketmine\block\tile\Container as ContainerTile;
@@ -32,12 +33,16 @@ use pocketmine\world\Explosion;
 use pocketmine\world\Position;
 use pocketmine\world\World;
 use function abs;
+use function array_key_exists;
 use function array_map;
 use function array_reverse;
 use function array_slice;
 use function count;
 use function in_array;
+use function fmod;
 use function is_array;
+use function is_bool;
+use function is_float;
 use function is_int;
 use function is_numeric;
 use function is_string;
@@ -45,6 +50,7 @@ use function ltrim;
 use function max;
 use function min;
 use function str_replace;
+use function str_starts_with;
 use function strtolower;
 use function usort;
 
@@ -88,7 +94,9 @@ final class ScriptApi{
 	public function __construct(
 		private ScriptLoader $loader,
 		private ScriptValues $values,
-		private ScriptStorage $storage
+		private ScriptStorage $storage,
+		private ScriptExtendedApi $extended,
+		private array $handlers = []
 	){
 		$this->server = $values->getServer();
 	}
@@ -178,8 +186,23 @@ final class ScriptApi{
 			"cont.set" => $this->inventory($a[0] ?? null)->setItem($this->slot($a[0] ?? null, $a[1] ?? 0), $this->values->decodeItem($a[2] ?? null)),
 			"cont.add" => $this->addItem($this->inventory($a[0] ?? null), $a[1] ?? null),
 			"cont.clear" => $this->inventory($a[0] ?? null)->clearAll(),
-			default => throw new ScriptException("Unknown request " . $method)
+			default => str_starts_with($method, "x.") ? $this->extended->handle($method, $a) : $this->delegate($method, $a)
 		};
+	}
+
+	/**
+	 * Sends a request to the handler of its prefix ("cmd.", "rule.", "tag.",
+	 * "dimx."...).
+	 *
+	 * @param list<mixed> $a
+	 */
+	private function delegate(string $method, array $a) : mixed{
+		$dot = \strpos($method, ".");
+		$handler = $dot === false ? null : ($this->handlers[\substr($method, 0, $dot + 1)] ?? null);
+		if($handler === null){
+			throw new ScriptException("Unknown request " . $method);
+		}
+		return $handler->handle($method, $a);
 	}
 
 	public static function gameModeName(GameMode $mode) : string{
@@ -302,6 +325,17 @@ final class ScriptApi{
 		$minDistance = is_numeric($options["minDistance"] ?? null) ? (float) $options["minDistance"] : null;
 		$gameMode = is_string($options["gameMode"] ?? null) ? strtolower($options["gameMode"]) : null;
 		$excludeGameModes = array_map(fn($m) => strtolower((string) $m), is_array($options["excludeGameModes"] ?? null) ? $options["excludeGameModes"] : []);
+		$families = array_map(fn($f) => (string) $f, is_array($options["families"] ?? null) ? $options["families"] : []);
+		$excludeFamilies = array_map(fn($f) => (string) $f, is_array($options["excludeFamilies"] ?? null) ? $options["excludeFamilies"] : []);
+		$volume = $location !== null && isset($options["volume"]) ? $this->values->vector($options["volume"]) : null;
+		$scoreKeys = is_array($options["_scoreKeys"] ?? null) ? $options["_scoreKeys"] : [];
+		$propertyOptions = is_array($options["propertyOptions"] ?? null) ? $options["propertyOptions"] : [];
+		$maxLevel = is_numeric($options["maxLevel"] ?? null) ? (int) $options["maxLevel"] : null;
+		$minLevel = is_numeric($options["minLevel"] ?? null) ? (int) $options["minLevel"] : null;
+		$maxHorizontal = is_numeric($options["maxHorizontalRotation"] ?? null) ? (float) $options["maxHorizontalRotation"] : null;
+		$minHorizontal = is_numeric($options["minHorizontalRotation"] ?? null) ? (float) $options["minHorizontalRotation"] : null;
+		$maxVertical = is_numeric($options["maxVerticalRotation"] ?? null) ? (float) $options["maxVerticalRotation"] : null;
+		$minVertical = is_numeric($options["minVerticalRotation"] ?? null) ? (float) $options["minVerticalRotation"] : null;
 
 		$matches = [];
 		foreach($entities as $entity){
@@ -341,8 +375,42 @@ final class ScriptApi{
 					continue;
 				}
 			}
+			if($maxLevel !== null || $minLevel !== null){
+				if(!$entity instanceof Player){
+					continue;
+				}
+				$level = $entity->getXpManager()->getXpLevel();
+				if(($maxLevel !== null && $level > $maxLevel) || ($minLevel !== null && $level < $minLevel)){
+					continue;
+				}
+			}
+			if(count($families) > 0 || count($excludeFamilies) > 0){
+				$entityFamilies = BehaviorEntity::familiesOf($entity);
+				foreach($families as $family){
+					if(!in_array($family, $entityFamilies, true)){
+						continue 2;
+					}
+				}
+				foreach($excludeFamilies as $family){
+					if(in_array($family, $entityFamilies, true)){
+						continue 2;
+					}
+				}
+			}
+			if(!$this->matchesRotation($entity, $maxHorizontal, $minHorizontal, $maxVertical, $minVertical)){
+				continue;
+			}
+			if(count($scoreKeys) > 0 && !$this->matchesScoreKeys($entity, $scoreKeys)){
+				continue;
+			}
+			if(count($propertyOptions) > 0 && !$this->matchesPropertyOptions($entity, $propertyOptions)){
+				continue;
+			}
 			$position = $entity->getPosition();
 			if($block !== null && !$position->floor()->equals($block)){
+				continue;
+			}
+			if($volume !== null && !$this->withinVolume($position, $location, $volume)){
 				continue;
 			}
 			if($location !== null){
@@ -369,6 +437,112 @@ final class ScriptApi{
 			$result[] = $this->values->entityRef($entity);
 		}
 		return $result;
+	}
+
+	private function withinVolume(Vector3 $position, Vector3 $location, Vector3 $volume) : bool{
+		$endX = $location->x + $volume->x;
+		$endY = $location->y + $volume->y;
+		$endZ = $location->z + $volume->z;
+		return $position->x >= min($location->x, $endX) && $position->x <= max($location->x, $endX)
+			&& $position->y >= min($location->y, $endY) && $position->y <= max($location->y, $endY)
+			&& $position->z >= min($location->z, $endZ) && $position->z <= max($location->z, $endZ);
+	}
+
+	private function matchesRotation(Entity $entity, ?float $maxHorizontal, ?float $minHorizontal, ?float $maxVertical, ?float $minVertical) : bool{
+		if($maxHorizontal === null && $minHorizontal === null && $maxVertical === null && $minVertical === null){
+			return true;
+		}
+		$location = $entity->getLocation();
+		$yaw = fmod($location->getYaw(), 360.0);
+		if($yaw >= 180.0){
+			$yaw -= 360.0;
+		}elseif($yaw < -180.0){
+			$yaw += 360.0;
+		}
+		$pitch = $location->getPitch();
+		if(($maxHorizontal !== null && $yaw > $maxHorizontal) || ($minHorizontal !== null && $yaw < $minHorizontal)){
+			return false;
+		}
+		if(($maxVertical !== null && $pitch > $maxVertical) || ($minVertical !== null && $pitch < $minVertical)){
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * @param array<mixed> $scoreKeys
+	 */
+	private function matchesScoreKeys(Entity $entity, array $scoreKeys) : bool{
+		$key = $entity instanceof Player ? "p:" . $entity->getName() : "e:" . $entity->getId();
+		foreach($scoreKeys as $option){
+			if(!is_array($option)){
+				continue;
+			}
+			$keys = is_array($option["keys"] ?? null) ? $option["keys"] : [];
+			$inRange = in_array($key, $keys, true);
+			if(($option["exclude"] ?? false) === true ? $inRange : !$inRange){
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * @param array<mixed> $propertyOptions
+	 */
+	private function matchesPropertyOptions(Entity $entity, array $propertyOptions) : bool{
+		foreach($propertyOptions as $option){
+			if(!is_array($option) || !is_string($option["propertyId"] ?? null)){
+				continue;
+			}
+			$value = $entity instanceof BehaviorEntity ? $entity->getPropertyValue($option["propertyId"]) : null;
+			$matched = $value !== null && (!array_key_exists("value", $option) || $this->matchesPropertyValue($value, $option["value"]));
+			if(($option["exclude"] ?? false) === true ? $matched : !$matched){
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private function matchesPropertyValue(bool|int|float|string $value, mixed $filter) : bool{
+		if(!is_array($filter)){
+			return $this->propertyEquals($value, $filter);
+		}
+		if(array_key_exists("equals", $filter)){
+			return $this->propertyEquals($value, $filter["equals"]);
+		}
+		if(array_key_exists("notEquals", $filter)){
+			return !$this->propertyEquals($value, $filter["notEquals"]);
+		}
+		if(!is_int($value) && !is_float($value)){
+			return false;
+		}
+		if(is_numeric($filter["lowerBound"] ?? null) && is_numeric($filter["upperBound"] ?? null)){
+			return $value >= (float) $filter["lowerBound"] && $value <= (float) $filter["upperBound"];
+		}
+		if(is_numeric($filter["lessThan"] ?? null)){
+			return $value < (float) $filter["lessThan"];
+		}
+		if(is_numeric($filter["lessThanOrEquals"] ?? null)){
+			return $value <= (float) $filter["lessThanOrEquals"];
+		}
+		if(is_numeric($filter["greaterThan"] ?? null)){
+			return $value > (float) $filter["greaterThan"];
+		}
+		if(is_numeric($filter["greaterThanOrEquals"] ?? null)){
+			return $value >= (float) $filter["greaterThanOrEquals"];
+		}
+		return false;
+	}
+
+	private function propertyEquals(bool|int|float|string $value, mixed $expected) : bool{
+		if(is_bool($value) || is_bool($expected) || is_string($value) || is_string($expected)){
+			return $value === $expected;
+		}
+		if(is_numeric($expected)){
+			return (float) $value === (float) $expected;
+		}
+		return false;
 	}
 
 	private function loadedBlock(mixed $dimension, mixed $location) : ?Block{
@@ -608,6 +782,9 @@ final class ScriptApi{
 	}
 
 	private function triggerEvent(Entity $entity, string $event) : bool{
+		if($entity instanceof Player){
+			return PlayerBehaviorManager::get($entity)?->triggerEvent($event) ?? false;
+		}
 		return $entity instanceof BehaviorEntity && $entity->triggerEvent($event);
 	}
 
@@ -693,6 +870,11 @@ final class ScriptApi{
 			"minecraft:inventory" => $entity instanceof Human,
 			"minecraft:equippable" => $entity instanceof Living,
 			"minecraft:onfire" => $entity->isOnFire(),
+			"minecraft:item" => $entity instanceof \pocketmine\entity\object\ItemEntity,
+			"minecraft:rideable" => $entity instanceof BehaviorEntity && $entity->hasComponent("minecraft:rideable"),
+			"minecraft:riding" => $entity->isRiding(),
+			"minecraft:type_family" => true,
+			"minecraft:projectile" => $entity instanceof BehaviorEntity && $entity->isCustomProjectile(),
 			default => false
 		};
 	}

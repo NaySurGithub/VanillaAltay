@@ -47,7 +47,9 @@ final class BehaviorPackModule{
 			$this->loaders[] = new CustomContentLoader($plugin);
 		}
 		if($settings->entities){
+			$this->loaders[] = new \behaviorpack\entity\animation\AnimationLoader($plugin);
 			$this->loaders[] = new EntityLoader($plugin);
+			$this->loaders[] = new \behaviorpack\spawn\SpawnRuleLoader($plugin);
 		}
 		if($settings->recipes){
 			$this->loaders[] = new RecipeLoader($plugin);
@@ -74,6 +76,9 @@ final class BehaviorPackModule{
 	public function enable() : void{
 		$discovery = new PackDiscovery($this->plugin->getDataFolder() . "cache/behavior_packs", $this->plugin->getLogger());
 		$this->packs = $discovery->discover($this->getPacksDirectory());
+		foreach($this->packs as $pack){
+			\behaviorpack\entity\behavior\inventory\TradeTableSystem::registerPackRoot($pack->getPath());
+		}
 		if(count($this->packs) === 0){
 			return;
 		}

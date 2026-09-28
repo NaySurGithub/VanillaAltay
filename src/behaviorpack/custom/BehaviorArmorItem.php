@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace behaviorpack\custom;
 
+use behaviorpack\custom\item\CombatItem;
+use behaviorpack\custom\item\RepairableTrait;
 use customiesdevs\customies\item\ItemComponents;
 use pocketmine\item\Armor;
 use pocketmine\item\ArmorTypeInfo;
@@ -14,8 +16,9 @@ use pocketmine\item\ItemIdentifier;
  *
  * @phpstan-import-type ItemDefinition from BehaviorItemTrait
  */
-final class BehaviorArmorItem extends Armor implements ItemComponents{
+final class BehaviorArmorItem extends Armor implements ItemComponents, CombatItem{
 	use BehaviorItemTrait;
+	use RepairableTrait;
 
 	/**
 	 * @phpstan-param ItemDefinition $definition

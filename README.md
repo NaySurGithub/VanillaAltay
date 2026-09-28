@@ -39,6 +39,7 @@ Drop any behavior pack in the `behavior_packs` folder next to `resource_packs` a
 - **Custom items and blocks** · components, states, permutations, placement
 - **Custom entities** · components, component groups, events and simple AI
 - **Recipes and loot tables** · crafting, smelting, brewing, block and mob drops
+- **Structures and features** · .mcstructure files, jigsaw structures, features and custom dimensions
 - **Scripts** · `@minecraft/server` and `@minecraft/server-ui`, run by a JavaScript engine written in pure PHP, nothing to install
 
 ## 🧱 Dummies

@@ -46,8 +46,8 @@ final class ServerModule{
 
 	public const DIRECTIONS = ["Down", "Up", "North", "South", "West", "East"];
 
-	private const BLOCK_HOOKS = ["onPlayerInteract", "onPlace", "onPlayerBreak"];
-	private const ITEM_HOOKS = ["onUse", "onUseOn"];
+	private const BLOCK_HOOKS = ["onPlayerInteract", "onPlace", "onPlayerBreak", "onPlayerDestroy", "onRandomTick", "onTick", "onStepOn", "onStepOff", "onEntityFallOn", "beforeOnPlayerPlace", "onBreak", "onRedstoneUpdate"];
+	private const ITEM_HOOKS = ["onUse", "onUseOn", "onCompleteUse", "onConsume", "onHitEntity", "onMineBlock"];
 
 	private Interpreter $js;
 
@@ -87,6 +87,20 @@ final class ServerModule{
 	public JsObject $worldObject;
 	public JsObject $systemObject;
 
+	/** @var array<string, HostClass> */
+	public array $entityComponents = [];
+
+	/** @var array<string, \Closure(mixed) : ?JsObject> */
+	public array $itemComponents = [];
+
+	public ?JsObject $dimensionRegistry = null;
+
+	/** @var array<string, JsObject> */
+	public array $waypoints = [];
+
+	/** @var array<int, JsObject> */
+	public array $shapes = [];
+
 	/** @var array<string, mixed> */
 	private array $exports = [];
 
@@ -124,6 +138,13 @@ final class ServerModule{
 		$this->defineWorld();
 		$this->defineSystem();
 		$this->defineEnums();
+		(new ExtendedModule($runtime, $f, $this))->define();
+		foreach(["CommandModule", "GameRuleModule", "TagModule", "DimensionModule"] as $name){
+			$class = __NAMESPACE__ . "\\" . $name;
+			if(\class_exists($class)){
+				(new $class($runtime, $f, $this))->define();
+			}
+		}
 	}
 
 	/**
@@ -133,7 +154,7 @@ final class ServerModule{
 		return $this->exports;
 	}
 
-	private function export(string $name, mixed $value) : void{
+	public function export(string $name, mixed $value) : void{
 		$this->exports[$name] = $value instanceof HostClass ? $value->constructor : $value;
 	}
 
@@ -164,11 +185,11 @@ final class ServerModule{
 		return $stub;
 	}
 
-	private function api(string $method, mixed ...$args) : mixed{
+	public function api(string $method, mixed ...$args) : mixed{
 		return $this->toJs($this->runtime->api->handle($method, $args));
 	}
 
-	private function raw(string $method, mixed ...$args) : mixed{
+	public function raw(string $method, mixed ...$args) : mixed{
 		return $this->runtime->api->handle($method, $args);
 	}
 
@@ -449,6 +470,15 @@ final class ServerModule{
 			return $this->f->instance($this->entityType, ["kind" => "type", "id" => self::namespaced($this->string($args[0] ?? ""))]);
 		});
 		$this->export("EntityTypes", $entityTypes);
+		foreach([[$entityTypes, $this->entityType, "x.types.entity"], [$itemTypes, $this->itemType, "x.types.item"], [$blockTypes, $this->blockType, "x.types.block"]] as [$holder, $typeClass, $request]){
+			$f->staticMethod($holder, "getAll", function(mixed $thisValue, array $args) use ($typeClass, $request) : mixed{
+				$types = [];
+				foreach($this->raw($request) as $id){
+					$types[] = $this->f->instance($typeClass, ["kind" => "type", "id" => $id]);
+				}
+				return $this->js->newArray($types);
+			});
+		}
 		$effectTypes = $f->define("EffectTypes");
 		$f->staticMethod($effectTypes, "get", function(mixed $thisValue, array $args) : mixed{
 			$name = $this->string($args[0] ?? "");
@@ -499,7 +529,6 @@ final class ServerModule{
 		$f->method($this->permutation, "getItemStack", function(mixed $thisValue, array $args) : mixed{
 			return $this->api("block.item", $this->fromJs($thisValue), $args[0] ?? 1);
 		});
-		$this->missingMethods($this->permutation, ["getTags" => [], "hasTag" => false]);
 		$this->export("BlockPermutation", $this->permutation);
 	}
 
@@ -623,21 +652,35 @@ final class ServerModule{
 			if($id === "minecraft:durability"){
 				return $host["md"] > 0 ? $this->f->instance($this->durability, ["kind" => "component", "owner" => $thisValue, "typeId" => $id]) : null;
 			}
+			if(isset($this->itemComponents[$id])){
+				return ($this->itemComponents[$id])($thisValue);
+			}
 			$this->runtime->recordMissing("ItemStack.getComponent(" . $id . ")");
 			return null;
 		}, 1);
 		$f->method($item, "hasComponent", function(mixed $thisValue, array $args) : mixed{
 			$host = $this->f->host($thisValue, "item");
-			return self::namespaced($this->string($args[0] ?? "")) === "minecraft:durability" && $host["md"] > 0;
+			$id = self::namespaced($this->string($args[0] ?? ""));
+			if($id === "minecraft:durability"){
+				return $host["md"] > 0;
+			}
+			return isset($this->itemComponents[$id]) && ($this->itemComponents[$id])($thisValue) !== null;
 		}, 1);
 		$f->method($item, "getComponents", function(mixed $thisValue, array $args) use ($js) : mixed{
 			$host = $this->f->host($thisValue, "item");
-			if($host["md"] <= 0){
-				return $js->newArray();
+			$result = [];
+			if($host["md"] > 0){
+				$result[] = $this->f->instance($this->durability, ["kind" => "component", "owner" => $thisValue, "typeId" => "minecraft:durability"]);
 			}
-			return $js->newArray([$this->f->instance($this->durability, ["kind" => "component", "owner" => $thisValue, "typeId" => "minecraft:durability"])]);
+			foreach($this->itemComponents as $factory){
+				$component = $factory($thisValue);
+				if($component !== null){
+					$result[] = $component;
+				}
+			}
+			return $js->newArray($result);
 		});
-		$this->missingMethods($item, ["getTags" => [], "hasTag" => false, "getDynamicProperty" => null, "setDynamicProperty" => null, "getCanDestroy" => [], "getCanPlaceOn" => []]);
+		$this->missingMethods($item, ["getDynamicProperty" => null, "setDynamicProperty" => null, "getCanDestroy" => [], "getCanPlaceOn" => []]);
 		$this->export("ItemStack", $item);
 
 		$this->component = $f->define("Component");
@@ -732,7 +775,7 @@ final class ServerModule{
 			$this->raw("cont.set", ['$c' => $ref($thisValue)], $args[0] ?? 0, $leftover);
 			return $this->toJs($leftover);
 		}, 2);
-		$this->missingMethods($container, ["getSlot" => null, "contains" => false, "find" => null, "firstEmptySlot" => null, "firstItem" => null]);
+		$this->missingMethods($container, ["contains" => false, "find" => null, "firstEmptySlot" => null, "firstItem" => null]);
 		$this->export("Container", $container);
 	}
 
@@ -832,10 +875,9 @@ final class ServerModule{
 		$f->method($this->equippable, "setEquipment", function(mixed $thisValue, array $args) use ($ownerId) : mixed{
 			return $this->raw("ent.equip.set", $ownerId($thisValue), $this->string($args[0] ?? ""), $this->fromJs($args[1] ?? null));
 		}, 2);
-		$this->missingMethods($this->equippable, ["getEquipmentSlot" => null]);
 		$this->export("EntityEquippableComponent", $this->equippable);
 
-		$components = [
+		$this->entityComponents = [
 			"minecraft:health" => $this->health,
 			"minecraft:inventory" => $this->inventory,
 			"minecraft:equippable" => $this->equippable
@@ -972,9 +1014,9 @@ final class ServerModule{
 		$f->method($entity, "getTags", function(mixed $thisValue, array $args) : mixed{
 			return $this->api("ent.tags", $this->entityId($thisValue));
 		});
-		$f->method($entity, "getComponent", function(mixed $thisValue, array $args) use ($components) : mixed{
+		$f->method($entity, "getComponent", function(mixed $thisValue, array $args) : mixed{
 			$id = self::namespaced($this->string($args[0] ?? ""));
-			$class = $components[$id] ?? null;
+			$class = $this->entityComponents[$id] ?? null;
 			if($class === null){
 				$this->runtime->recordMissing("Entity.getComponent(" . $id . ")");
 				return null;
@@ -984,13 +1026,13 @@ final class ServerModule{
 			}
 			return $this->f->instance($class, ["kind" => "component", "owner" => $thisValue, "typeId" => $id]);
 		}, 1);
-		$f->method($entity, "hasComponent", function(mixed $thisValue, array $args) use ($components) : mixed{
+		$f->method($entity, "hasComponent", function(mixed $thisValue, array $args) : mixed{
 			$id = self::namespaced($this->string($args[0] ?? ""));
-			return isset($components[$id]) && $this->raw("ent.comp", $this->entityId($thisValue), $id) === true;
+			return isset($this->entityComponents[$id]) && $this->raw("ent.comp", $this->entityId($thisValue), $id) === true;
 		}, 1);
-		$f->method($entity, "getComponents", function(mixed $thisValue, array $args) use ($components, $js) : mixed{
+		$f->method($entity, "getComponents", function(mixed $thisValue, array $args) use ($js) : mixed{
 			$result = [];
-			foreach($components as $id => $class){
+			foreach($this->entityComponents as $id => $class){
 				if($this->raw("ent.comp", $this->entityId($thisValue), $id) === true){
 					$result[] = $this->f->instance($class, ["kind" => "component", "owner" => $thisValue, "typeId" => $id]);
 				}
@@ -1045,7 +1087,6 @@ final class ServerModule{
 			$this->raw("pl.actionbar", $screenPlayer($thisValue), $this->text($args[0] ?? ""));
 			return null;
 		}, 1);
-		$this->missingMethods($this->screenDisplay, ["clearTitle" => null, "resetHudElements" => null, "setHudVisibility" => null, "isForcedHidden" => false]);
 		$this->export("ScreenDisplay", $this->screenDisplay);
 
 		$this->player = $f->define("Player", $entity);
@@ -1251,7 +1292,7 @@ final class ServerModule{
 			}
 			return $info($thisValue)["i"] ? $this->f->instance($this->blockInventory, ["kind" => "component", "owner" => $thisValue, "typeId" => $id]) : null;
 		}, 1);
-		$this->missingMethods($block, ["getTags" => [], "hasTag" => false, "getRedstonePower" => null, "canPlace" => false]);
+		$this->missingMethods($block, ["getRedstonePower" => null, "canPlace" => false]);
 		$this->export("Block", $block);
 
 		$this->dimension = $f->define("Dimension");
@@ -1308,7 +1349,6 @@ final class ServerModule{
 			}
 			return $this->api("dim.top", $dimensionId($thisValue), $this->js->toNumber($this->js->get($location, "x")), $this->js->toNumber($this->js->get($location, "z")));
 		}, 2);
-		$this->missingMethods($dimension, ["getBlockAbove" => null, "getBlockBelow" => null, "getBlockFromRay" => null, "getEntitiesFromRay" => [], "fillBlocks" => null, "spawnParticle" => null, "getWeather" => "Clear", "setWeather" => null, "containsBlock" => false, "getBlocks" => null]);
 		$this->export("Dimension", $dimension);
 	}
 
@@ -1323,12 +1363,42 @@ final class ServerModule{
 		if(!is_array($result)){
 			return [];
 		}
-		foreach(["families", "excludeFamilies", "volume", "scoreOptions", "propertyOptions"] as $unsupported){
-			if(isset($result[$unsupported])){
-				$this->runtime->recordMissing("EntityQueryOptions." . $unsupported);
-			}
+		if(is_array($result["scoreOptions"] ?? null)){
+			$result["_scoreKeys"] = $this->resolveScoreOptions($result["scoreOptions"]);
 		}
+		unset($result["scoreOptions"]);
 		return $result;
+	}
+
+	/**
+	 * Resolves EntityQueryScoreOptions into the participant keys whose score is in range.
+	 *
+	 * @param array<mixed> $scoreOptions
+	 * @return list<array{keys: list<string>, exclude: bool}>
+	 */
+	private function resolveScoreOptions(array $scoreOptions) : array{
+		$resolved = [];
+		foreach($scoreOptions as $option){
+			if(!is_array($option)){
+				continue;
+			}
+			$objective = is_string($option["objective"] ?? null) ? $option["objective"] : null;
+			$minScore = is_numeric($option["minScore"] ?? null) ? (int) $option["minScore"] : null;
+			$maxScore = is_numeric($option["maxScore"] ?? null) ? (int) $option["maxScore"] : null;
+			$keys = [];
+			$scores = $objective !== null ? ($this->scoreboardData["objectives"][$objective]["scores"] ?? []) : [];
+			foreach($scores as $key => $score){
+				if($minScore !== null && $score < $minScore){
+					continue;
+				}
+				if($maxScore !== null && $score > $maxScore){
+					continue;
+				}
+				$keys[] = (string) $key;
+			}
+			$resolved[] = ["keys" => $keys, "exclude" => ($option["exclude"] ?? false) === true];
+		}
+		return $resolved;
 	}
 
 	private function loadScoreboard(mixed $data) : void{
@@ -1581,7 +1651,6 @@ final class ServerModule{
 		}, 2);
 		$this->export("ItemComponentRegistry", $this->itemRegistry);
 		$this->commandRegistry = $f->define("CustomCommandRegistry");
-		$this->missingMethods($this->commandRegistry, ["registerCommand" => null, "registerEnum" => null]);
 		$this->export("CustomCommandRegistry", $this->commandRegistry);
 	}
 
@@ -1639,6 +1708,16 @@ final class ServerModule{
 			if(($key === "blockFace" || $key === "face") && is_int($value)){
 				$value = self::DIRECTIONS[$value] ?? "Up";
 			}
+			if($value instanceof \Closure){
+				$event->props[$key] = $this->js->native((string) $key, 0, function(mixed $thisValue, array $args) use ($value) : mixed{
+					$converted = [];
+					foreach($args as $arg){
+						$converted[] = $this->fromJs($arg);
+					}
+					return $this->toJs($value(...$converted));
+				});
+				continue;
+			}
 			$event->props[$key] = $this->toJs($value);
 		}
 		if($before){
@@ -1651,11 +1730,15 @@ final class ServerModule{
 	 * @return array<string, JsObject>
 	 */
 	public function createRegistries() : array{
-		return [
+		$registries = [
 			"blockComponentRegistry" => $this->f->instance($this->blockRegistry, ["kind" => "registry"]),
 			"itemComponentRegistry" => $this->f->instance($this->itemRegistry, ["kind" => "registry"]),
 			"customCommandRegistry" => $this->f->instance($this->commandRegistry, ["kind" => "registry"])
 		];
+		if($this->dimensionRegistry !== null){
+			$registries["dimensionRegistry"] = $this->dimensionRegistry;
+		}
+		return $registries;
 	}
 
 	private function defineWorld() : void{
@@ -1712,7 +1795,7 @@ final class ServerModule{
 			$this->raw("world.sound", $this->string($args[0] ?? ""), $this->vector($args[1] ?? null), $this->fromJs($args[2] ?? null) ?? []);
 			return null;
 		}, 3);
-		$this->missingMethods($world, ["playMusic" => null, "queueMusic" => null, "stopMusic" => null, "getLootTableManager" => null, "broadcastClientMessage" => null]);
+		$this->missingMethods($world, ["getLootTableManager" => null, "broadcastClientMessage" => null]);
 		$this->entityDynamicProperties($world, function(mixed $thisValue) : string{
 			return "world";
 		});
@@ -1721,10 +1804,15 @@ final class ServerModule{
 		$this->worldObject = $f->instance($world, ["kind" => "world"]);
 		$this->worldObject->props["afterEvents"] = $this->container("WorldAfterEvents", "after", [
 			"playerJoin", "playerLeave", "playerSpawn", "playerBreakBlock", "playerPlaceBlock", "playerInteractWithBlock",
-			"playerInteractWithEntity", "itemUse", "entityHurt", "entityDie", "entitySpawn", "chatSend", "worldLoad", "worldInitialize"
+			"playerInteractWithEntity", "itemUse", "entityHurt", "entityDie", "entitySpawn", "chatSend", "worldLoad", "worldInitialize",
+			"entityHitEntity", "projectileHitBlock", "projectileHitEntity", "entityLoad", "entityRemove", "entityStartSneaking",
+			"itemStartUse", "itemStopUse", "itemCompleteUse", "playerDimensionChange", "playerHotbarSelectedSlotChange",
+			"playerInventoryItemChange", "playerSwingStart", "blockContainerOpened", "blockContainerClosed",
+			"entityContainerOpened", "entityContainerClosed"
 		]);
 		$this->worldObject->props["beforeEvents"] = $this->container("WorldBeforeEvents", "before", [
-			"playerBreakBlock", "playerInteractWithBlock", "itemUse", "chatSend", "playerLeave"
+			"playerBreakBlock", "playerInteractWithBlock", "itemUse", "chatSend", "playerLeave",
+			"entityHurt", "entityItemPickup", "explosion", "playerInteractWithEntity", "playerPlaceBlock", "entityRemove"
 		]);
 		$this->worldObject->props["scoreboard"] = $f->instance($this->scoreboard, ["kind" => "scoreboard"]);
 		foreach(["afterEvents", "beforeEvents", "scoreboard"] as $key){
@@ -1830,11 +1918,34 @@ final class ServerModule{
 			"ItemLockMode" => ["inventory" => "inventory", "none" => "none", "slot" => "slot"],
 			"TimeOfDay" => ["Day" => 1000, "Midnight" => 18000, "Night" => 13000, "Noon" => 6000, "Sunrise" => 23000, "Sunset" => 12000],
 			"MinecraftDimensionTypes" => ["Nether" => "minecraft:nether", "Overworld" => "minecraft:overworld", "TheEnd" => "minecraft:the_end"],
-			"EntityComponentTypes" => ["Equippable" => "minecraft:equippable", "Health" => "minecraft:health", "Inventory" => "minecraft:inventory"],
-			"ItemComponentTypes" => ["Durability" => "minecraft:durability"],
+			"EntityComponentTypes" => ["Equippable" => "minecraft:equippable", "Health" => "minecraft:health", "Inventory" => "minecraft:inventory", "Item" => "minecraft:item", "Rideable" => "minecraft:rideable", "Riding" => "minecraft:riding", "TypeFamily" => "minecraft:type_family", "Projectile" => "minecraft:projectile"],
+			"ItemComponentTypes" => ["Cooldown" => "minecraft:cooldown", "Durability" => "minecraft:durability", "Enchantable" => "minecraft:enchantable"],
 			"BlockComponentTypes" => ["Inventory" => "minecraft:inventory"],
-			"SignSide" => ["Back" => "Back", "Front" => "Front"]
+			"SignSide" => ["Back" => "Back", "Front" => "Front"],
+			"ButtonState" => ["Pressed" => "Pressed", "Released" => "Released"],
+			"InputButton" => ["Jump" => "Jump", "Sneak" => "Sneak"],
+			"InputMode" => ["Gamepad" => "Gamepad", "KeyboardAndMouse" => "KeyboardAndMouse", "MotionController" => "MotionController", "Touch" => "Touch"],
+			"InputPermissionCategory" => ["Camera" => 1, "Movement" => 2, "LateralMovement" => 4, "Sneak" => 5, "Jump" => 6, "Mount" => 7, "Dismount" => 8, "MoveForward" => 9, "MoveBackward" => 10, "MoveLeft" => 11, "MoveRight" => 12],
+			"CommandPermissionLevel" => ["Any" => 0, "GameDirectors" => 1, "Admin" => 2, "Host" => 3, "Owner" => 4],
+			"PlayerPermissionLevel" => ["Visitor" => 0, "Member" => 1, "Operator" => 2, "Custom" => 3],
+			"CustomCommandParamType" => ["Boolean" => "Boolean", "Integer" => "Integer", "Float" => "Float", "String" => "String", "EntitySelector" => "EntitySelector", "PlayerSelector" => "PlayerSelector", "Location" => "Location", "BlockType" => "BlockType", "ItemType" => "ItemType", "Enum" => "Enum", "EntityType" => "EntityType"],
+			"CustomCommandStatus" => ["Success" => 0, "Failure" => 1],
+			"CustomCommandSource" => ["Block" => "Block", "Entity" => "Entity", "NPCDialogue" => "NPCDialogue", "Server" => "Server"],
+			"EntitySwingSource" => ["None" => "None", "Attack" => "Attack", "Build" => "Build", "DropItem" => "DropItem", "Event" => "Event", "Interact" => "Interact", "Mine" => "Mine", "ThrowItem" => "ThrowItem", "Use" => "Use"],
+			"StructureSaveMode" => ["Memory" => "Memory", "World" => "World"],
+			"StructureRotation" => ["None" => "None", "Rotate90" => "Rotate90", "Rotate180" => "Rotate180", "Rotate270" => "Rotate270"],
+			"StructureMirrorAxis" => ["None" => "None", "X" => "X", "XZ" => "XZ", "Z" => "Z"],
+			"StructureAnimationMode" => ["Blocks" => "Blocks", "Layers" => "Layers", "None" => "None"],
+			"HudElement" => ["PaperDoll" => 0, "Armor" => 1, "ToolTips" => 2, "TouchControls" => 3, "Crosshair" => 4, "Hotbar" => 5, "Health" => 6, "ProgressBar" => 7, "Hunger" => 8, "AirBubbles" => 9, "HorseHealth" => 10, "StatusEffects" => 11, "ItemText" => 12],
+			"HudVisibility" => ["Hide" => 0, "Reset" => 1],
+			"PlayerInventoryType" => ["Hotbar" => "Hotbar", "Inventory" => "Inventory"],
+			"EnchantmentSlot" => ["ArmorFeet" => "ArmorFeet", "ArmorHead" => "ArmorHead", "ArmorLegs" => "ArmorLegs", "ArmorTorso" => "ArmorTorso", "Axe" => "Axe", "Bow" => "Bow", "CarrotStick" => "CarrotStick", "CosmeticHead" => "CosmeticHead", "Crossbow" => "Crossbow", "Elytra" => "Elytra", "FishingRod" => "FishingRod", "Flintsteel" => "Flintsteel", "Hoe" => "Hoe", "Pickaxe" => "Pickaxe", "Shears" => "Shears", "Shield" => "Shield", "Shovel" => "Shovel", "Spear" => "Spear", "Sword" => "Sword"]
 		];
+		$easing = [];
+		foreach(["Linear", "Spring", "InQuad", "OutQuad", "InOutQuad", "InCubic", "OutCubic", "InOutCubic", "InQuart", "OutQuart", "InOutQuart", "InQuint", "OutQuint", "InOutQuint", "InSine", "OutSine", "InOutSine", "InExpo", "OutExpo", "InOutExpo", "InCirc", "OutCirc", "InOutCirc", "InBounce", "OutBounce", "InOutBounce", "InBack", "OutBack", "InOutBack", "InElastic", "OutElastic", "InOutElastic"] as $name){
+			$easing[$name] = $name;
+		}
+		$enums["EasingType"] = $easing;
 		$causes = [];
 		foreach(["anvil", "blockExplosion", "campfire", "charging", "contact", "drowning", "entityAttack", "entityExplosion", "fall", "fallingBlock", "fire", "fireTick", "fireworks", "flyIntoWall", "freezing", "lava", "lightning", "maceSmash", "magic", "magma", "none", "override", "piston", "projectile", "ramAttack", "selfDestruct", "sonicBoom", "soulCampfire", "stalactite", "stalagmite", "starve", "suffocation", "temperature", "thorns", "void", "wither"] as $cause){
 			$causes[$cause] = $cause;

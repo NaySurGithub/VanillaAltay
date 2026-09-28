@@ -27,6 +27,8 @@ use pocketmine\world\format\io\GlobalItemDataHandlers;
 use pocketmine\world\World;
 use stdClass;
 use Throwable;
+use function array_keys;
+use function array_search;
 use function array_values;
 use function base64_decode;
 use function base64_encode;
@@ -55,6 +57,20 @@ final class ScriptValues{
 
 	/** @var array<int, string>|null */
 	private ?array $effectNames = null;
+
+	/** @var array<string, string> */
+	private array $customDimensions = [];
+
+	public function registerCustomDimension(string $typeId, string $folder) : void{
+		$this->customDimensions[$typeId] = $folder;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public function customDimensions() : array{
+		return array_keys($this->customDimensions);
+	}
 
 	public function __construct(
 		private Server $server
@@ -136,6 +152,10 @@ final class ScriptValues{
 		if($default === $world){
 			return self::OVERWORLD;
 		}
+		$custom = array_search($world->getFolderName(), $this->customDimensions, true);
+		if($custom !== false){
+			return $custom;
+		}
 		$name = strtolower($world->getFolderName());
 		if($name === "nether" || $name === "dim-1" || str_ends_with($name, "_nether")){
 			return self::NETHER;
@@ -154,6 +174,12 @@ final class ScriptValues{
 			throw new ScriptException("Invalid dimension");
 		}
 		$id = strtolower($dimension);
+		if(isset($this->customDimensions[$id])){
+			$custom = $this->server->getWorldManager()->getWorldByName($this->customDimensions[$id]);
+			if($custom !== null){
+				return $custom;
+			}
+		}
 		if(!str_contains($id, ":") && $this->server->getWorldManager()->getWorldByName($dimension) !== null){
 			return $this->server->getWorldManager()->getWorldByName($dimension);
 		}
