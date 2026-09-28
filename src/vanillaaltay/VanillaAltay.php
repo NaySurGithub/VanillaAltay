@@ -54,6 +54,11 @@ final class VanillaAltay extends PluginBase{
 		$this->dimensions?->enable();
 		$this->behaviorPacks?->enable();
 		$this->dummies?->enable();
+
+		$updates = $this->getConfig()->get("updates");
+		if(!is_array($updates) || ($updates["check"] ?? true) === true){
+			VersionChecker::checkAsync($this);
+		}
 	}
 
 	protected function onDisable() : void{

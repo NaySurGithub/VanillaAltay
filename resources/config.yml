@@ -22,3 +22,6 @@ behavior-packs:
 
 dummies:
   enabled: true
+
+updates:
+  check: true
